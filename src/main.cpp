@@ -3,6 +3,7 @@
  * Purpose: Real-time, debuggable N-body gravity simulation with raylib + rlImGui + ImGui.
  * Provides split control windows, per-body list selection, robust input gating so UI scroll does not zoom,
  * integrator selection, softening, diagnostics, camera pan/zoom, click-to-select, right-drag velocity set, trails.
+ * Update: Left-click drag anywhere on empty space pans the viewport. Small left-click on a body selects it.
  */
 
 #include <raylib.h>
@@ -24,9 +25,7 @@ struct Body {
     bool pinned;
 };
 
-/**
- * Purpose: Return a random high-contrast color for new bodies.
- */
+/* Purpose: Return a random high-contrast color for new bodies. */
 static Color RandomNiceColor() {
     return {
         (unsigned char)GetRandomValue(64, 255),
@@ -36,15 +35,11 @@ static Color RandomNiceColor() {
     };
 }
 
-/**
- * Purpose: Check finiteness of a numeric value.
- */
+/* Purpose: Check finiteness of a numeric value. */
 template <typename T>
 static bool IsFinite(T v) { return std::isfinite((double)v); }
 
-/**
- * Purpose: Compute accelerations via symmetric gravity with softening; returns false on non-finite.
- */
+/* Purpose: Compute accelerations via symmetric gravity with softening; returns false on non-finite. */
 static bool ComputeAccelerations(const std::vector<Body>& bodies, std::vector<Vector2>& a, double G, double eps2) {
     const size_t n = bodies.size();
     a.assign(n, Vector2{0.0f, 0.0f});
@@ -86,9 +81,6 @@ static bool ComputeAccelerations(const std::vector<Body>& bodies, std::vector<Ve
     return true;
 }
 
-/**
- * Purpose: Integrate one step with Semi-Implicit Euler; returns false on numerical error.
- */
 static bool StepSemiImplicitEuler(std::vector<Body>& bodies, std::vector<Vector2>& a, float dt, double G, double eps2, float maxSpeed) {
     if (!ComputeAccelerations(bodies, a, G, eps2)) return false;
     for (size_t i = 0; i < bodies.size(); ++i) {
@@ -103,9 +95,6 @@ static bool StepSemiImplicitEuler(std::vector<Body>& bodies, std::vector<Vector2
     return true;
 }
 
-/**
- * Purpose: Integrate one step with Velocity Verlet; returns false on numerical error.
- */
 static bool StepVelocityVerlet(std::vector<Body>& bodies, std::vector<Vector2>& a, float dt, double G, double eps2, float maxSpeed) {
     if (!ComputeAccelerations(bodies, a, G, eps2)) return false;
 
@@ -134,9 +123,6 @@ static bool StepVelocityVerlet(std::vector<Body>& bodies, std::vector<Vector2>& 
     return true;
 }
 
-/**
- * Purpose: Compute kinetic, potential, total energy, momentum, center of mass; returns false on non-finite.
- */
 struct Diagnostics {
     double kinetic;
     double potential;
@@ -192,9 +178,6 @@ static bool ComputeDiagnostics(const std::vector<Body>& bodies, double G, double
     return true;
 }
 
-/**
- * Purpose: Reset a stable demo scenario.
- */
 static void ResetScenario(std::vector<Body>& bodies) {
     bodies.clear();
     bodies.push_back(Body{ Vector2{640, 360}, Vector2{ 0.0f,  0.0f}, 4000.0f, RED,   false });
@@ -202,9 +185,6 @@ static void ResetScenario(std::vector<Body>& bodies) {
     bodies.push_back(Body{ Vector2{440, 360}, Vector2{ 0.0f, -1.20f},   12.0f, GREEN, false });
 }
 
-/**
- * Purpose: Enforce zero net momentum to reduce drift in COM frame.
- */
 static void ZeroNetMomentum(std::vector<Body>& bodies) {
     double Px = 0.0, Py = 0.0, M = 0.0;
     for (auto& b : bodies) { Px += (double)b.mass * (double)b.velocity.x; Py += (double)b.mass * (double)b.velocity.y; M += (double)b.mass; }
@@ -216,9 +196,6 @@ static void ZeroNetMomentum(std::vector<Body>& bodies) {
     }
 }
 
-/**
- * Purpose: Maintain position trails for visualization.
- */
 static void UpdateTrails(std::vector<std::vector<Vector2>>& trails, const std::vector<Body>& bodies, int maxLen) {
     if ((int)trails.size() != (int)bodies.size()) trails.assign(bodies.size(), {});
     for (size_t i = 0; i < bodies.size(); ++i) {
@@ -228,9 +205,6 @@ static void UpdateTrails(std::vector<std::vector<Vector2>>& trails, const std::v
     }
 }
 
-/**
- * Purpose: Pick nearest body to a world point under a radius.
- */
 static int PickBody(const std::vector<Body>& bodies, const Vector2& worldPos, float radius) {
     int best = -1;
     float bestD2 = radius * radius;
@@ -244,9 +218,6 @@ static int PickBody(const std::vector<Body>& bodies, const Vector2& worldPos, fl
     return best;
 }
 
-/**
- * Purpose: Draw a simple world grid under camera.
- */
 static void DrawWorldGrid(const Camera2D& cam, float spacing) {
     Vector2 tl = GetScreenToWorld2D(Vector2{0,0}, cam);
     Vector2 br = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, cam);
@@ -307,6 +278,11 @@ int main() {
     Vector2 dragWorld = Vector2{0,0};
     bool showDrag = false;
 
+    bool lmbPanning = false;
+    int  lmbPickCandidate = -1;
+    float lmbDragDistSq = 0.0f;
+    const float selectThresholdSq = 9.0f; // 3px threshold
+
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(Color{10, 10, 14, 255});
@@ -321,7 +297,7 @@ int main() {
         if (ImGui::Button("Step")) requestStep = true;
         ImGui::Checkbox("Use Fixed dt", &useFixedDt);
         ImGui::SliderFloat("Fixed dt", &fixedDt, 1e-4f, 0.05f, "%.6f");
-        ImGui::SliderFloat("Time Scale", &timeScale, 0.0f, 10.0f, "%.3f");
+        ImGui::SliderFloat("Time Scale", &timeScale, 0.0f, 5.0f, "%.3f");
         int integ = (integrator == Integrator::VelocityVerlet) ? 1 : 0;
         ImGui::RadioButton("Semi-Implicit Euler", &integ, 0); ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &integ, 1);
@@ -421,7 +397,7 @@ int main() {
         ImGui::Text("Potential: %.6g", d.potential);
         ImGui::Text("Total: %.6g", d.energy);
         ImGui::Text("Momentum: (%.6g, %.6g)", d.momentum.x, d.momentum.y);
-        ImGui::Text("COM: (%.3f, %.3f)  Mass: %.3f", d.com.x, d.com.y, d.totalMass);
+        ImGui::Text("COM: (%.3f, %.3f)  Mass: %.3f", d.com.x, d.totalMass ? d.com.y : 0.0f, d.totalMass);
         if (!okDiag) ImGui::TextColored(ImVec4(1,0.3f,0.3f,1), "Non-finite detected; auto-paused.");
         ImGui::End();
 
@@ -471,14 +447,30 @@ int main() {
             Vector2 worldAfter = GetScreenToWorld2D(mouse, cam);
             cam.target = Vector2Add(cam.target, Vector2Subtract(worldBefore, worldAfter));
         }
-        if (!uiWantsMouse && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
-            Vector2 delta = Vector2Scale(GetMouseDelta(), -1.0f / cam.zoom);
-            cam.target = Vector2Add(cam.target, delta);
-        }
 
-        if (!uiWantsMouse && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            Vector2 w = GetScreenToWorld2D(GetMousePosition(), cam);
-            selected = PickBody(bodies, w, 24.0f / cam.zoom);
+        if (!uiWantsMouse) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 w = GetScreenToWorld2D(GetMousePosition(), cam);
+                lmbPickCandidate = PickBody(bodies, w, 24.0f / cam.zoom);
+                lmbPanning = (lmbPickCandidate == -1);
+                lmbDragDistSq = 0.0f;
+            }
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                Vector2 dpx = GetMouseDelta();
+                lmbDragDistSq += dpx.x*dpx.x + dpx.y*dpx.y;
+                if (lmbPanning) {
+                    Vector2 delta = Vector2Scale(dpx, -1.0f / cam.zoom);
+                    cam.target = Vector2Add(cam.target, delta);
+                }
+            }
+            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                if (!lmbPanning && lmbPickCandidate >= 0 && lmbDragDistSq <= selectThresholdSq) {
+                    selected = lmbPickCandidate;
+                }
+                lmbPanning = false;
+                lmbPickCandidate = -1;
+                lmbDragDistSq = 0.0f;
+            }
         }
 
         showDrag = false;
