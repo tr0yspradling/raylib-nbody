@@ -236,7 +236,8 @@ static int PickBody(const std::vector<Body>& bodies, const Vector2& worldPos, fl
     float bestD2 = radius * radius;
     for (int i = 0; i < (int)bodies.size(); ++i) {
         float d2 = Vector2LengthSqr(Vector2Subtract(worldPos, bodies[i].position));
-        float r = std::max(6.0f, (float)std::cbrt(std::max(1.0f, (double)bodies[i].mass)));
+        double safeMass = std::max(1.0, (double)bodies[i].mass);
+        float r = std::max(6.0f, (float)std::cbrt(safeMass));
         float pick = (radius + r);
         if (d2 <= pick * pick && d2 < bestD2) { best = i; bestD2 = d2; }
     }
@@ -320,7 +321,7 @@ int main() {
         if (ImGui::Button("Step")) requestStep = true;
         ImGui::Checkbox("Use Fixed dt", &useFixedDt);
         ImGui::SliderFloat("Fixed dt", &fixedDt, 1e-4f, 0.05f, "%.6f");
-        ImGui::SliderFloat("Time Scale", &timeScale, 0.0f, 5.0f, "%.3f");
+        ImGui::SliderFloat("Time Scale", &timeScale, 0.0f, 10.0f, "%.3f");
         int integ = (integrator == Integrator::VelocityVerlet) ? 1 : 0;
         ImGui::RadioButton("Semi-Implicit Euler", &integ, 0); ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &integ, 1);
@@ -416,7 +417,6 @@ int main() {
         Diagnostics d{};
         bool okDiag = ComputeDiagnostics(bodies, G, (double)softening*(double)softening, d);
         ImGui::Begin("Diagnostics");
-        double relEnergy = (std::abs(d.energy) > 0.0) ? (d.energy) : 0.0;
         ImGui::Text("Kinetic: %.6g", d.kinetic);
         ImGui::Text("Potential: %.6g", d.potential);
         ImGui::Text("Total: %.6g", d.energy);
