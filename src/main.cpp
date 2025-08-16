@@ -58,18 +58,18 @@ static bool ComputeAccelerations(const std::vector<Body>& bodies, std::vector<Ve
             double invR = 1.0 / std::sqrt(r2);
             double invR3 = invR * invR * invR;
 
-            double ax_i = G * (double)bodies[j].mass * dx * invR3;
-            double ay_i = G * (double)bodies[j].mass * dy * invR3;
-            double ax_j = -G * (double)bodies[i].mass * dx * invR3;
-            double ay_j = -G * (double)bodies[i].mass * dy * invR3;
+            double ax_i = G * static_cast<double>(bodies[j].mass) * dx * invR3;
+            double ay_i = G * static_cast<double>(bodies[j].mass) * dy * invR3;
+            double ax_j = -G * static_cast<double>(bodies[i].mass) * dx * invR3;
+            double ay_j = -G * static_cast<double>(bodies[i].mass) * dy * invR3;
 
             if (!bodies[i].pinned) {
-                a[i].x += (float)ax_i;
-                a[i].y += (float)ay_i;
+                a[i].x += static_cast<float>(ax_i);
+                a[i].y += static_cast<float>(ay_i);
             }
             if (!bodies[j].pinned) {
-                a[j].x += (float)ax_j;
-                a[j].y += (float)ay_j;
+                a[j].x += static_cast<float>(ax_j);
+                a[j].y += static_cast<float>(ay_j);
             }
         }
     }
@@ -143,33 +143,33 @@ static bool ComputeDiagnostics(const std::vector<Body>& bodies, double G, double
     double Cx = 0.0, Cy = 0.0;
 
     for (size_t i = 0; i < n; ++i) {
-        double vx = (double)bodies[i].velocity.x;
-        double vy = (double)bodies[i].velocity.y;
-        double m = (double)bodies[i].mass;
+        double vx = static_cast<double>(bodies[i].velocity.x);
+        double vy = static_cast<double>(bodies[i].velocity.y);
+        double m = static_cast<double>(bodies[i].mass);
         KE += 0.5 * m * (vx*vx + vy*vy);
         Px += m * vx;
         Py += m * vy;
-        Cx += m * (double)bodies[i].position.x;
-        Cy += m * (double)bodies[i].position.y;
+        Cx += m * static_cast<double>(bodies[i].position.x);
+        Cy += m * static_cast<double>(bodies[i].position.y);
         M += m;
     }
 
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = i + 1; j < n; ++j) {
-            double dx = (double)bodies[j].position.x - (double)bodies[i].position.x;
-            double dy = (double)bodies[j].position.y - (double)bodies[i].position.y;
+            double dx = static_cast<double>(bodies[j].position.x) - static_cast<double>(bodies[i].position.x);
+            double dy = static_cast<double>(bodies[j].position.y) - static_cast<double>(bodies[i].position.y);
             double r2 = dx*dx + dy*dy + eps2;
             double r = std::sqrt(r2);
-            PE += -G * (double)bodies[i].mass * (double)bodies[j].mass / r;
+            PE += -G * static_cast<double>(bodies[i].mass) * static_cast<double>(bodies[j].mass) / r;
         }
     }
 
     out.kinetic = KE;
     out.potential = PE;
     out.energy = KE + PE;
-    out.momentum = Vector2{(float)Px, (float)Py};
+    out.momentum = Vector2{static_cast<float>(Px), static_cast<float>(Py)};
     out.totalMass = M;
-    out.com = (M > 0.0) ? Vector2{(float)(Cx / M), (float)(Cy / M)} : Vector2{0,0};
+    out.com = (M > 0.0) ? Vector2{static_cast<float>(Cx / M), static_cast<float>(Cy / M)} : Vector2{0,0};
 
     if (!IsFinite(out.kinetic) || !IsFinite(out.potential) || !IsFinite(out.energy)) return false;
     if (!IsFinite(out.momentum.x) || !IsFinite(out.momentum.y)) return false;
@@ -186,9 +186,13 @@ static void ResetScenario(std::vector<Body>& bodies) {
 
 static void ZeroNetMomentum(std::vector<Body>& bodies) {
     double Px = 0.0, Py = 0.0, M = 0.0;
-    for (auto& b : bodies) { Px += (double)b.mass * (double)b.velocity.x; Py += (double)b.mass * (double)b.velocity.y; M += (double)b.mass; }
+    for (auto& b : bodies) {
+        Px += static_cast<double>(b.mass) * static_cast<double>(b.velocity.x);
+        Py += static_cast<double>(b.mass) * static_cast<double>(b.velocity.y);
+        M += static_cast<double>(b.mass);
+    }
     if (M <= 0.0) return;
-    Vector2 v0 = Vector2{ (float)(Px / M), (float)(Py / M) };
+    Vector2 v0 = Vector2{ static_cast<float>(Px / M), static_cast<float>(Py / M) };
     for (auto& b : bodies) {
         if (b.pinned) continue;
         b.velocity = Vector2Subtract(b.velocity, v0);
@@ -196,11 +200,11 @@ static void ZeroNetMomentum(std::vector<Body>& bodies) {
 }
 
 static void UpdateTrails(std::vector<std::vector<Vector2>>& trails, const std::vector<Body>& bodies, int maxLen) {
-    if ((int)trails.size() != (int)bodies.size()) trails.assign(bodies.size(), {});
+    if (static_cast<int>(trails.size()) != static_cast<int>(bodies.size())) trails.assign(bodies.size(), {});
     for (size_t i = 0; i < bodies.size(); ++i) {
         auto& t = trails[i];
         t.push_back(bodies[i].position);
-        if ((int)t.size() > maxLen) t.erase(t.begin());
+        if (static_cast<int>(t.size()) > maxLen) t.erase(t.begin());
     }
 }
 
@@ -242,7 +246,7 @@ int main() {
 
     Camera2D cam{};
     cam.zoom = 1.0f;
-    cam.offset = Vector2{ (float)GetScreenWidth() * 0.5f, (float)GetScreenHeight() * 0.5f };
+    cam.offset = Vector2{ static_cast<float>(GetScreenWidth()) * 0.5f, static_cast<float>(GetScreenHeight()) * 0.5f };
     cam.target = Vector2{ 640.0f, 360.0f };
 
     std::vector<Body> bodies;
@@ -305,7 +309,7 @@ int main() {
         ImGui::End();
 
         ImGui::Begin("Physics");
-        float Gf = (float)G;
+        float Gf = static_cast<float>(G);
         ImGui::SliderFloat("G", &Gf, 0.0f, 0.02f, "%.6f");
         G = Gf;
         ImGui::SliderFloat("Softening (epsilon)", &softening, 0.0f, 20.0f, "%.3f");
@@ -341,7 +345,7 @@ int main() {
             if (drawTrails) UpdateTrails(trails, bodies, trailMax);
         }
         ImGui::SliderFloat("Right-Drag Vel Scale", &dragVelScale, 0.001f, 0.2f, "%.3f");
-        if (selected >= 0 && selected < (int)bodies.size()) {
+        if (selected >= 0 && selected < static_cast<int>(bodies.size())) {
             ImGui::SeparatorText("Selected Body");
             ImGui::Text("Index: %d", selected);
             ImGui::Checkbox("Pinned", &bodies[selected].pinned);
@@ -362,10 +366,10 @@ int main() {
 
         ImGui::Begin("Bodies");
         if (ImGui::BeginListBox("##BodyList", ImVec2(-FLT_MIN, 300))) {
-            for (int i = 0; i < (int)bodies.size(); ++i) {
+            for (int i = 0; i < static_cast<int>(bodies.size()); ++i) {
                 const auto& b = bodies[i];
-                std::string label = std::to_string(i) + "  m=" + std::to_string((int)b.mass) +
-                                    "  pos=(" + std::to_string((int)b.position.x) + "," + std::to_string((int)b.position.y) + ")" +
+                std::string label = std::to_string(i) + "  m=" + std::to_string(static_cast<int>(b.mass)) +
+                                    "  pos=(" + std::to_string(static_cast<int>(b.position.x)) + "," + std::to_string(static_cast<int>(b.position.y)) + ")" +
                                     (b.pinned ? "  [P]" : "");
                 ImVec4 col = ImVec4(b.color.r/255.0f, b.color.g/255.0f, b.color.b/255.0f, 1.0f);
                 ImGui::PushID(i);
@@ -376,7 +380,7 @@ int main() {
             }
             ImGui::EndListBox();
         }
-        if (ImGui::Button("Duplicate Selected") && selected >= 0 && selected < (int)bodies.size()) {
+        if (ImGui::Button("Duplicate Selected") && selected >= 0 && selected < static_cast<int>(bodies.size())) {
             Body b = bodies[selected];
             b.position = Vector2Add(b.position, Vector2{20.0f, 0.0f});
             bodies.push_back(b);
@@ -385,12 +389,12 @@ int main() {
         ImGui::SameLine();
         if (ImGui::Button("Recenter to COM")) {
             Diagnostics d{};
-            if (ComputeDiagnostics(bodies, G, (double)softening*(double)softening, d)) cam.target = d.com;
+            if (ComputeDiagnostics(bodies, G, static_cast<double>(softening) * static_cast<double>(softening), d)) cam.target = d.com;
         }
         ImGui::End();
 
         Diagnostics d{};
-        bool okDiag = ComputeDiagnostics(bodies, G, (double)softening*(double)softening, d);
+        bool okDiag = ComputeDiagnostics(bodies, G, static_cast<double>(softening) * static_cast<double>(softening), d);
         ImGui::Begin("Diagnostics");
         ImGui::Text("Kinetic: %.6g", d.kinetic);
         ImGui::Text("Potential: %.6g", d.potential);
@@ -409,10 +413,10 @@ int main() {
             bool ok = true;
             switch (integrator) {
                 case Integrator::SemiImplicitEuler:
-                    ok = StepSemiImplicitEuler(bodies, accel, dt, G, (double)softening*(double)softening, maxSpeed);
+                    ok = StepSemiImplicitEuler(bodies, accel, dt, G, static_cast<double>(softening) * static_cast<double>(softening), maxSpeed);
                     break;
                 case Integrator::VelocityVerlet:
-                    ok = StepVelocityVerlet(bodies, accel, dt, G, (double)softening*(double)softening, maxSpeed);
+                    ok = StepVelocityVerlet(bodies, accel, dt, G, static_cast<double>(softening) * static_cast<double>(softening), maxSpeed);
                     break;
             }
             double t1 = GetTime();
@@ -425,10 +429,10 @@ int main() {
             bool ok = true;
             switch (integrator) {
                 case Integrator::SemiImplicitEuler:
-                    ok = StepSemiImplicitEuler(bodies, accel, fixedDt, G, (double)softening*(double)softening, maxSpeed);
+                    ok = StepSemiImplicitEuler(bodies, accel, fixedDt, G, static_cast<double>(softening) * static_cast<double>(softening), maxSpeed);
                     break;
                 case Integrator::VelocityVerlet:
-                    ok = StepVelocityVerlet(bodies, accel, fixedDt, G, (double)softening*(double)softening, maxSpeed);
+                    ok = StepVelocityVerlet(bodies, accel, fixedDt, G, static_cast<double>(softening) * static_cast<double>(softening), maxSpeed);
                     break;
             }
             double t1 = GetTime();
@@ -473,7 +477,7 @@ int main() {
         }
 
         showDrag = false;
-        if (!uiWantsMouse && selected >= 0 && selected < (int)bodies.size()) {
+        if (!uiWantsMouse && selected >= 0 && selected < static_cast<int>(bodies.size())) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) draggingVel = true;
             if (draggingVel && IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
                 dragWorld = GetScreenToWorld2D(GetMousePosition(), cam);
@@ -493,31 +497,37 @@ int main() {
                 const auto& t = trails[i];
                 for (size_t k = 1; k < t.size(); ++k) {
                     Color c = bodies[i].color;
-                    c.a = (unsigned char)std::clamp(20 + (int)(230.0 * (double)k / std::max(1, (int)t.size())), 20, 250);
+                    c.a = static_cast<unsigned char>(
+                        std::clamp(20 + static_cast<int>(230.0 * static_cast<double>(k) /
+                                                       std::max(1, static_cast<int>(t.size()))),
+                                   20, 250));
                     DrawLineV(t[k-1], t[k], c);
                 }
             }
         }
 
-        for (int i = 0; i < (int)bodies.size(); ++i) {
-            float r = (float)std::cbrt(std::max(1.0, (double)bodies[i].mass));
+        for (int i = 0; i < static_cast<int>(bodies.size()); ++i) {
+            float r = static_cast<float>(
+                std::cbrt(std::max(1.0, static_cast<double>(bodies[i].mass))));
             DrawCircleV(bodies[i].position, r, bodies[i].color);
             if (drawVelocity) {
                 Vector2 tip = Vector2Add(bodies[i].position, Vector2Scale(bodies[i].velocity, 10.0f));
                 DrawLineEx(bodies[i].position, tip, 1.5f, WHITE);
             }
-            if (drawAcceleration && i < (int)accel.size()) {
+            if (drawAcceleration && i < static_cast<int>(accel.size())) {
                 Vector2 tip = Vector2Add(bodies[i].position, Vector2Scale(accel[i], 500.0f));
                 DrawLineEx(bodies[i].position, tip, 1.0f, ORANGE);
             }
         }
 
-        if (selected >= 0 && selected < (int)bodies.size()) {
-            float r = (float)std::cbrt(std::max(1.0, (double)bodies[selected].mass)) + 4.0f;
+        if (selected >= 0 && selected < static_cast<int>(bodies.size())) {
+            float r = static_cast<float>(
+                          std::cbrt(std::max(1.0, static_cast<double>(bodies[selected].mass)))) +
+                      4.0f;
             DrawRing(bodies[selected].position, r, r + 3.5f, 0, 360, 32, YELLOW);
         }
 
-        if (showDrag && selected >= 0 && selected < (int)bodies.size()) {
+        if (showDrag && selected >= 0 && selected < static_cast<int>(bodies.size())) {
             DrawLineEx(bodies[selected].position, dragWorld, 2.0f, YELLOW);
             DrawCircleV(dragWorld, 3.0f, YELLOW);
         }
