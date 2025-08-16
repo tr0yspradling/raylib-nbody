@@ -13,7 +13,6 @@
 #include <vector>
 #include <cmath>
 #include <cfloat>
-#include <limits>
 #include <algorithm>
 #include <string>
 
@@ -28,16 +27,16 @@ struct Body {
 /* Purpose: Return a random high-contrast color for new bodies. */
 static Color RandomNiceColor() {
     return {
-        (unsigned char)GetRandomValue(64, 255),
-        (unsigned char)GetRandomValue(64, 255),
-        (unsigned char)GetRandomValue(64, 255),
+        static_cast<unsigned char>(GetRandomValue(64, 255)),
+        static_cast<unsigned char>(GetRandomValue(64, 255)),
+        static_cast<unsigned char>(GetRandomValue(64, 255)),
         255
     };
 }
 
-/* Purpose: Check finiteness of a numeric value. */
+/* Purpose: Check the finiteness of a numeric value. */
 template <typename T>
-static bool IsFinite(T v) { return std::isfinite((double)v); }
+static bool IsFinite(T v) { return std::isfinite(static_cast<double>(v)); }
 
 /* Purpose: Compute accelerations via symmetric gravity with softening; returns false on non-finite. */
 static bool ComputeAccelerations(const std::vector<Body>& bodies, std::vector<Vector2>& a, double G, double eps2) {
@@ -53,8 +52,8 @@ static bool ComputeAccelerations(const std::vector<Body>& bodies, std::vector<Ve
 
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = i + 1; j < n; ++j) {
-            double dx = (double)bodies[j].position.x - (double)bodies[i].position.x;
-            double dy = (double)bodies[j].position.y - (double)bodies[i].position.y;
+            double dx = static_cast<double>(bodies[j].position.x) - static_cast<double>(bodies[i].position.x);
+            double dy = static_cast<double>(bodies[j].position.y) - static_cast<double>(bodies[i].position.y);
             double r2 = dx*dx + dy*dy + eps2;
             double invR = 1.0 / std::sqrt(r2);
             double invR3 = invR * invR * invR;
@@ -99,7 +98,7 @@ static bool StepVelocityVerlet(std::vector<Body>& bodies, std::vector<Vector2>& 
     if (!ComputeAccelerations(bodies, a, G, eps2)) return false;
 
     const size_t n = bodies.size();
-    std::vector<Vector2> a_new(n, Vector2{0,0});
+    std::vector a_new(n, Vector2{0,0});
 
     for (size_t i = 0; i < n; ++i) {
         if (bodies[i].pinned) continue;
@@ -208,10 +207,10 @@ static void UpdateTrails(std::vector<std::vector<Vector2>>& trails, const std::v
 static int PickBody(const std::vector<Body>& bodies, const Vector2& worldPos, float radius) {
     int best = -1;
     float bestD2 = radius * radius;
-    for (int i = 0; i < (int)bodies.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(bodies.size()); ++i) {
         float d2 = Vector2LengthSqr(Vector2Subtract(worldPos, bodies[i].position));
-        double safeMass = std::max(1.0, (double)bodies[i].mass);
-        float r = std::max(6.0f, (float)std::cbrt(safeMass));
+        double safeMass = std::max(1.0, static_cast<double>(bodies[i].mass));
+        float r = std::max(6.0f, static_cast<float>(std::cbrt(safeMass)));
         float pick = (radius + r);
         if (d2 <= pick * pick && d2 < bestD2) { best = i; bestD2 = d2; }
     }
@@ -220,7 +219,7 @@ static int PickBody(const std::vector<Body>& bodies, const Vector2& worldPos, fl
 
 static void DrawWorldGrid(const Camera2D& cam, float spacing) {
     Vector2 tl = GetScreenToWorld2D(Vector2{0,0}, cam);
-    Vector2 br = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, cam);
+    Vector2 br = GetScreenToWorld2D(Vector2{static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}, cam);
 
     float startX = std::floor(tl.x / spacing) * spacing;
     float endX   = std::ceil (br.x / spacing) * spacing;
@@ -264,7 +263,7 @@ int main() {
 
     int selected = -1;
     float spawnMass = 12.0f;
-    Vector2 spawnVel = Vector2{0,0};
+    auto spawnVel = Vector2{0,0};
     bool spawnPinned = false;
     float dragVelScale = 0.01f;
 
@@ -275,13 +274,13 @@ int main() {
 
     double lastStepMs = 0.0;
     bool draggingVel = false;
-    Vector2 dragWorld = Vector2{0,0};
+    auto dragWorld = Vector2{0,0};
     bool showDrag = false;
 
     bool lmbPanning = false;
     int  lmbPickCandidate = -1;
     float lmbDragDistSq = 0.0f;
-    const float selectThresholdSq = 9.0f; // 3px threshold
+    constexpr float selectThresholdSq = 9.0f; // 3px threshold
 
     while (!WindowShouldClose()) {
         BeginDrawing();
