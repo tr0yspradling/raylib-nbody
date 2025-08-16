@@ -1,0 +1,19 @@
+[submodule "external/raylib"]
+	path = external/raylib
+	url = https://github.com/raysan5/raylib.git
+	branch = master
+
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+
+[submodule "external/rlImGui"]
+	path = external/rlImGui
+	url = https://github.com/raylib-extras/rlImGui.git
+	branch = main
+
+[submodule "external/flecs"]
+	path = external/flecs
+	url = https://github.com/SanderMertens/flecs.git
+	branch = master
