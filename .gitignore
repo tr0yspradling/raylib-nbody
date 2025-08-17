@@ -7,6 +7,8 @@
 *.lo
 *.o
 *.obj
+cmake-build-*/
+build/
 
 # Precompiled Headers
 *.gch
