@@ -225,16 +225,7 @@ namespace ecs {
         // Initialize interaction state
         world.set<InteractionState>({});
 
-        // Input processing system
-        world.system<>().kind(flecs::PreUpdate).iter([&](flecs::iter&) {
-            // This would coordinate with camera system to get current camera
-            // For now, we'll need to integrate this properly with the main loop
-        });
-
-        // Selection management system
-        world.system<>().kind(flecs::OnUpdate).iter([&](flecs::iter&) {
-            // Handle any automatic selection behaviors
-        });
+        // No periodic systems needed; input handled from main loop
     }
 
     void process_interaction_input(const flecs::world& world, const raylib::Camera2D& camera) {
