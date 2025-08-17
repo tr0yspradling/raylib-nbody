@@ -11,6 +11,12 @@
 #include "raylib-cpp.hpp"
 #include "raymath.h"
 
+// Forward declarations for interaction system
+namespace ecs {
+    flecs::entity get_selected_entity(const flecs::world&);
+    void select_entity(const flecs::world&, flecs::entity);
+}
+
 namespace ecs {
 
     void ui_begin() { rlImGuiBegin(); }
@@ -53,7 +59,9 @@ namespace ecs {
                 .set<Mass>({mass})
                 .set<Pinned>({pinned})
                 .set<Tint>({col})
-                .set<Trail>({{}});
+                .set<Trail>({{}})
+                .add<Selectable>()        // Make reset bodies selectable
+                .set<Draggable>({true, 0.01f}); // Make reset bodies draggable
         };
 
         mk({640, 360}, {0.0f, 0.0f}, 4000.0f, RED, false);
@@ -115,7 +123,6 @@ namespace ecs {
 
     void draw_ui(const flecs::world& w, raylib::Camera2D& cam) {
         auto* cfg = w.get_mut<Config>();
-        auto* sel = w.get_mut<Selection>();
         bool requestStep = false;
         ImGui::SetNextWindowPos(ImVec2(12, 12), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_FirstUseEver);
@@ -128,7 +135,7 @@ namespace ecs {
         }
         ImGui::Checkbox("Use Fixed dt", &cfg->useFixedDt);
         ImGui::SliderFloat("Fixed dt", &cfg->fixedDt, 1e-4f, 0.05f, "%.6f");
-        ImGui::SliderFloat("Time Scale", &cfg->timeScale, 0.0f, 5.0f, "%.3f");
+        ImGui::SliderFloat("Time Scale", &cfg->timeScale, 0.0f, 10.0f, "%.3f");
         ImGui::RadioButton("Semi-Implicit Euler", &cfg->integrator, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &cfg->integrator, 1);
@@ -143,12 +150,14 @@ namespace ecs {
         cfg->G = Gf;
         ImGui::SliderFloat("Softening (epsilon)", &cfg->softening, 0.0f, 20.0f, "%.3f");
         ImGui::SliderFloat("Velocity Cap", &cfg->maxSpeed, 0.0f, 200.0f, "%.1f");
-        if (ImGui::Button("Zero Net Momentum")) zero_net_momentum(w);
+        if (ImGui::Button("Zero Net Momentum")) {
+            zero_net_momentum(w);
+        }
         ImGui::SameLine();
         if (ImGui::Button("Reset Scenario")) {
             reset_scenario(w);
             zero_net_momentum(w);
-            sel->id = 0;
+            select_entity(w, flecs::entity::null()); // Clear selection in new system
             cfg->paused = false;
         }
         ImGui::End();
@@ -184,11 +193,13 @@ namespace ecs {
                 .set<Mass>({std::max(1.0f, spawnMass)})
                 .set<Pinned>({spawnPinned})
                 .set<Tint>({RandomNiceColor()})
-                .set<Trail>({{}});
+                .set<Trail>({{}})
+                .add<Selectable>()        // Make new body selectable
+                .set<Draggable>({true, dragVelScale}); // Make new body draggable
         }
         ImGui::SliderFloat("Right-Drag Vel Scale", &dragVelScale, 0.001f, 0.2f, "%.3f");
 
-        if (const flecs::entity selected = sel->id ? w.entity(sel->id) : flecs::entity::null(); selected.is_alive()) {
+        if (flecs::entity selected = get_selected_entity(w); selected.is_alive()) {
             const auto mass = selected.get_mut<Mass>();
             const auto vel = selected.get_mut<Velocity>();
             const auto pin = selected.get_mut<Pinned>();
@@ -201,7 +212,7 @@ namespace ecs {
                 ImGui::SameLine();
                 if (ImGui::Button("Remove Body")) {
                     selected.destruct();
-                    sel->id = 0;
+                    select_entity(w, flecs::entity::null()); // Clear selection in new system
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Focus Camera")) {
@@ -225,13 +236,18 @@ namespace ecs {
                 ImGui::PushID(static_cast<int>(e.id()));
                 ImGui::ColorButton("##c", col, ImGuiColorEditFlags_NoTooltip, ImVec2(16, 16));
                 ImGui::SameLine();
-                if (const bool isSel = sel->id == e.id(); ImGui::Selectable(label.c_str(), isSel)) sel->id = e.id();
+                flecs::entity currentSelected = get_selected_entity(w);
+                if (const bool isSel = currentSelected.is_alive() && currentSelected.id() == e.id(); 
+                    ImGui::Selectable(label.c_str(), isSel)) {
+                    select_entity(w, e);
+                }
                 ImGui::PopID();
             });
             ImGui::EndListBox();
         }
-        if (ImGui::Button("Duplicate Selected") && sel->id) {
-            if (const auto e = w.entity(sel->id); e.is_alive()) {
+        if (ImGui::Button("Duplicate Selected")) {
+            if (flecs::entity selected = get_selected_entity(w); selected.is_alive()) {
+                const auto e = selected;
                 auto p = *e.get<Position>();
                 auto v = *e.get<Velocity>();
                 auto m = *e.get<Mass>();
@@ -246,7 +262,9 @@ namespace ecs {
                     .set(m)
                     .set(pin)
                     .set(t)
-                    .set(Trail{{}});
+                    .set(Trail{{}})
+                    .add<Selectable>()        // Make duplicated body selectable
+                    .set<Draggable>({true, dragVelScale}); // Make duplicated body draggable
             }
         }
         ImGui::SameLine();

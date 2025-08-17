@@ -30,3 +30,19 @@ struct Tint {
 struct Trail {
     std::vector<raylib::Vector2> points;
 };
+
+// Selection and interaction components
+struct Selectable {
+    bool canSelect = true;
+};
+
+struct Selected {
+    // Tag component to mark currently selected entity
+};
+
+struct Draggable {
+    bool canDragVelocity = true;
+    float dragScale = 0.01f;
+};
+
+// (removed) MouseInteraction: legacy input state no longer used
