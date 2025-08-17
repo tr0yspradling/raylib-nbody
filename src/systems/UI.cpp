@@ -1,5 +1,6 @@
 #include <cfloat>
 #include <cmath>
+#include <algorithm>
 #include <flecs.h>
 #include <imgui.h>
 #include <rlImGui.h>
@@ -229,22 +230,30 @@ namespace ecs {
         // Defer selection changes until after iterating to avoid mutating during iteration
         flecs::entity pendingSelection = flecs::entity::null();
         if (ImGui::BeginListBox("##BodyList", ImVec2(-FLT_MIN, 300))) {
+            struct Row { flecs::entity e; raylib::Vector2 pos; float mass; raylib::Color tint; };
+            std::vector<Row> rows;
+            rows.reserve(128);
             w.each([&](const flecs::entity e, const Position& p, const Mass& m, const Tint& tint) {
-                const std::string label = std::to_string(static_cast<int>(e.id())) +
-                    "  m=" + std::to_string(static_cast<int>(m.value)) + "  pos=(" +
-                    std::to_string(static_cast<int>(p.value.x)) + "," + std::to_string(static_cast<int>(p.value.y)) +
+                rows.push_back(Row{e, p.value, m.value, tint.value});
+            });
+            std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b){ return a.e.id() < b.e.id(); });
+            
+            flecs::entity currentSelected = get_selected_entity(w);
+            for (const Row& r : rows) {
+                const std::string label = std::to_string(static_cast<int>(r.e.id())) +
+                    "  m=" + std::to_string(static_cast<int>(r.mass)) + "  pos=(" +
+                    std::to_string(static_cast<int>(r.pos.x)) + "," + std::to_string(static_cast<int>(r.pos.y)) +
                     ")";
-                const auto col = ImVec4(tint.value.r / 255.0f, tint.value.g / 255.0f, tint.value.b / 255.0f, 1.0f);
-                ImGui::PushID(static_cast<int>(e.id()));
+                const auto col = ImVec4(r.tint.r / 255.0f, r.tint.g / 255.0f, r.tint.b / 255.0f, 1.0f);
+                ImGui::PushID(static_cast<int>(r.e.id()));
                 ImGui::ColorButton("##c", col, ImGuiColorEditFlags_NoTooltip, ImVec2(16, 16));
                 ImGui::SameLine();
-                flecs::entity currentSelected = get_selected_entity(w);
-                if (const bool isSel = currentSelected.is_alive() && currentSelected.id() == e.id(); 
-                    ImGui::Selectable(label.c_str(), isSel)) {
-                    pendingSelection = e;
+                const bool isSel = currentSelected.is_alive() && currentSelected.id() == r.e.id();
+                if (ImGui::Selectable(label.c_str(), isSel)) {
+                    pendingSelection = r.e;
                 }
                 ImGui::PopID();
-            });
+            }
             ImGui::EndListBox();
         }
         if (pendingSelection.is_alive()) {
