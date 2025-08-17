@@ -23,10 +23,12 @@ namespace ecs {
     // Interaction state singleton
     struct InteractionState {
         bool isDraggingVelocity = false;
+        bool isDraggingSelected = false;
         bool isPanning = false;
         float dragDistancePixels = 0.0f;
         raylib::Vector2 dragStartWorld{0, 0};
         raylib::Vector2 currentDragWorld{0, 0};
+        raylib::Vector2 selectedDragOffset{0, 0};
         flecs::entity panCandidate = flecs::entity::null();
         flecs::entity hoveredEntity = flecs::entity::null();
         flecs::entity selectedEntity = flecs::entity::null();
@@ -125,16 +127,28 @@ namespace ecs {
             const raylib::Vector2 mouseWorld = GetScreenToWorld2D(mouseScreen, camera);
             const float pickRadius = interaction_constants::pick_radius_px / camera.zoom;
 
-            // Left mouse button - selection and panning
+            // Left mouse button - selection, panning, and dragging selected when paused
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 flecs::entity entityAtMouse = FindEntityAtPosition(world, mouseWorld, pickRadius);
-                
-                if (entityAtMouse.is_alive()) {
-                    state->panCandidate = entityAtMouse;
-                    state->isPanning = false;
+
+                // If paused and clicking on the selected entity, start drag-move
+                if (const auto* cfg = world.get<Config>(); cfg && cfg->paused &&
+                    state->selectedEntity.is_alive() && entityAtMouse.is_alive() &&
+                    entityAtMouse.id() == state->selectedEntity.id()) {
+                    if (const auto* pos = state->selectedEntity.get<Position>()) {
+                        state->isDraggingSelected = true;
+                        state->isPanning = false;
+                        state->panCandidate = flecs::entity::null();
+                        state->selectedDragOffset = pos->value - mouseWorld;
+                    }
                 } else {
-                    state->isPanning = true;
-                    state->panCandidate = flecs::entity::null();
+                    if (entityAtMouse.is_alive()) {
+                        state->panCandidate = entityAtMouse;
+                        state->isPanning = false;
+                    } else {
+                        state->isPanning = true;
+                        state->panCandidate = flecs::entity::null();
+                    }
                 }
                 
                 state->dragDistancePixels = 0.0f;
@@ -144,6 +158,15 @@ namespace ecs {
                 raylib::Vector2 mouseDelta = GetMouseDelta();
                 state->dragDistancePixels += std::sqrt(mouseDelta.x * mouseDelta.x + mouseDelta.y * mouseDelta.y);
                 
+                if (state->isDraggingSelected && state->selectedEntity.is_alive()) {
+                    // Move selected entity to follow mouse (with initial offset), only while paused
+                    if (const auto* cfg = world.get<Config>(); cfg && cfg->paused) {
+                        if (auto* pos = state->selectedEntity.get_mut<Position>()) {
+                            pos->value = mouseWorld + state->selectedDragOffset;
+                        }
+                    }
+                }
+
                 if (state->isPanning) {
                     // Apply panning by moving camera target opposite to mouse delta (scaled by zoom)
                     if (raylib::Camera2D* cam = get_camera(world)) {
@@ -154,7 +177,12 @@ namespace ecs {
             }
 
             if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                if (!state->isPanning && state->panCandidate.is_alive() && 
+                // Finish drag-move if active
+                if (state->isDraggingSelected) {
+                    state->isDraggingSelected = false;
+                    state->panCandidate = flecs::entity::null();
+                    state->dragDistancePixels = 0.0f;
+                } else if (!state->isPanning && state->panCandidate.is_alive() && 
                     state->dragDistancePixels <= std::sqrt(interaction_constants::select_threshold_sq)) {
                     SelectEntity(world, state->panCandidate);
                 }
