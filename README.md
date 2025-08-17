@@ -32,3 +32,20 @@ cmake --build cmake-build-debug
 - raylib (graphics and windowing)
 - ImGui (UI framework, fetched automatically)
 - rlImGui (raylib-ImGui integration, fetched automatically)
+
+## TODO
+
+High Priority (Correctness/Maintainability):
+1. Remove dead code (Selection, CameraState, unused components)
+2. Consolidate duplicate constants into shared header
+3. Add proper null checks and error handling
+
+Medium Priority (Code Quality):
+1. Extract constants for magic numbers
+2. Break down large methods (draw_ui, ProcessMouseInput)
+3. Move static functions into appropriate classes/namespaces
+
+Low Priority (Performance):
+1. Optimize data access patterns in physics
+2. Consider object pooling for frequent allocations
+3. Add spatial partitioning for large N-body simulations
