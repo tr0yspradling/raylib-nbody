@@ -11,26 +11,12 @@
 #include "core/Camera.hpp"
 #include "core/Config.hpp"
 
-// Forward declarations for system registration
-namespace ecs {
-    void register_physics_systems(const flecs::world&);
-    void register_camera_system(const flecs::world&);
-    void register_interaction_system(const flecs::world&);
-    
-    // System functions
-    void render_scene(const flecs::world&, const Config&, raylib::Camera2D&);
-    void draw_ui(const flecs::world&, raylib::Camera2D&);
-    void ui_begin();
-    void ui_end();
-    
-    // Camera system functions
-    raylib::Camera2D* get_camera(const flecs::world&);
-    void center_camera_on_com(const flecs::world&);
-    
-    // Interaction system functions  
-    void process_interaction_input(const flecs::world&, const raylib::Camera2D&);
-    void render_interaction_overlay(const flecs::world&, const raylib::Camera2D&);
-}
+// New header-only systems
+#include "systems/Physics.hpp"
+#include "systems/Camera.hpp"
+#include "systems/Interaction.hpp"
+#include "systems/Render.hpp"
+#include "systems/UI.hpp"
 
 namespace constants {
     // Window and timing
@@ -121,29 +107,29 @@ private:
         world_.set<Config>({});
 
         // Register all systems
-        ecs::register_physics_systems(world_);
-        ecs::register_camera_system(world_);
-        ecs::register_interaction_system(world_);
+        nbody::Physics::Register(world_);
+        nbody::Camera::Register(world_);
+        nbody::Interaction::Register(world_);
 
         // Create initial scenario
         scenario::CreateInitialBodies(world_);
 
         // Center camera to initial COM
-        ecs::center_camera_on_com(world_);
+        nbody::Camera::CenterOnCenterOfMass(world_);
     }
 
     void Update() const {
         const double frameStart = GetTime();
 
         // Get camera and configuration
-        raylib::Camera2D* camera = ecs::get_camera(world_);
+        raylib::Camera2D* camera = nbody::Camera::Get(world_);
         auto* cfg = world_.get_mut<Config>();
         
         if (!cfg || !camera) return;
 
         // UI first (this sets up ImGui state)
-        ecs::ui_begin();
-        ecs::draw_ui(world_, *camera);
+        nbody::UI::Begin();
+        nbody::UI::Draw(world_, *camera);
 
         // Check if UI wants to capture mouse
         const ImGuiIO& io = ImGui::GetIO();
@@ -153,7 +139,7 @@ private:
         // Zoom at mouse when UI not captured
         if (!ui_blocks_mouse) {
             if (const float wheel = GetMouseWheelMove(); wheel != 0.0F) {
-                ZoomCameraAtMouse(*camera, wheel);
+                nbody::CameraUtils::ZoomAtMouse(*camera, wheel);
             }
         }
 
@@ -162,7 +148,7 @@ private:
         
         // Process interaction input (mouse handling, selection, etc.)
         if (!ui_blocks_mouse) {
-            ecs::process_interaction_input(world_, *camera);
+            nbody::Interaction::ProcessInput(world_, *camera);
         }
 
         // Progress ECS world (runs physics and other systems)
@@ -179,9 +165,9 @@ private:
         ClearBackground(constants::background);
 
         // Get camera for rendering
-        raylib::Camera2D* camera = ecs::get_camera(world_);
+        raylib::Camera2D* camera = nbody::Camera::Get(world_);
         if (!camera) {
-            ecs::ui_end();
+            nbody::UI::End();
             EndDrawing();
             return;
         }
@@ -190,17 +176,17 @@ private:
         const auto* cfg = world_.get<Config>();
         if (cfg) {
             // Render the physics scene
-            ecs::render_scene(world_, *cfg, *camera);
+            nbody::Renderer::RenderScene(world_, *cfg, *camera);
         }
 
         // Render interaction overlays (selection rings, drag visuals)
-        ecs::render_interaction_overlay(world_, *camera);
+        nbody::Interaction::RenderOverlay(world_, *camera);
 
         // Debug HUD for camera/DPI diagnostics
         RenderDebugHUD(*camera);
 
         // End UI frame and drawing (UI was started in Update)
-        ecs::ui_end();
+        nbody::UI::End();
         EndDrawing();
     }
 

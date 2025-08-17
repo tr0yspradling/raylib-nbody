@@ -127,11 +127,11 @@ add_executable(raylib_nbody
     src/core/Config.hpp
     src/core/Camera.hpp
     src/components/Components.hpp
-    src/systems/Physics.cpp
-    src/systems/Render.cpp
-    src/systems/UI.cpp
-    src/systems/Camera.cpp
-    src/systems/Interaction.cpp
+    src/systems/Physics.hpp
+    src/systems/Render.hpp
+    src/systems/UI.hpp
+    src/systems/Camera.hpp
+    src/systems/Interaction.hpp
 )
 
 target_include_directories(raylib_nbody
