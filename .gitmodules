@@ -17,3 +17,8 @@
 	path = external/flecs
 	url = https://github.com/SanderMertens/flecs.git
 	branch = master
+
+[submodule "external/raylib-cpp"]
+	path = external/raylib-cpp
+	url = https://github.com/RobLoach/raylib-cpp.git
+	branch = master
