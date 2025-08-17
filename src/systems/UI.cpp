@@ -226,6 +226,8 @@ namespace ecs {
         ImGui::SetNextWindowPos(ImVec2(400, 12), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 360), ImGuiCond_FirstUseEver);
         ImGui::Begin("Bodies");
+        // Defer selection changes until after iterating to avoid mutating during iteration
+        flecs::entity pendingSelection = flecs::entity::null();
         if (ImGui::BeginListBox("##BodyList", ImVec2(-FLT_MIN, 300))) {
             w.each([&](const flecs::entity e, const Position& p, const Mass& m, const Tint& tint) {
                 const std::string label = std::to_string(static_cast<int>(e.id())) +
@@ -239,11 +241,14 @@ namespace ecs {
                 flecs::entity currentSelected = get_selected_entity(w);
                 if (const bool isSel = currentSelected.is_alive() && currentSelected.id() == e.id(); 
                     ImGui::Selectable(label.c_str(), isSel)) {
-                    select_entity(w, e);
+                    pendingSelection = e;
                 }
                 ImGui::PopID();
             });
             ImGui::EndListBox();
+        }
+        if (pendingSelection.is_alive()) {
+            select_entity(w, pendingSelection);
         }
         if (ImGui::Button("Duplicate Selected")) {
             if (flecs::entity selected = get_selected_entity(w); selected.is_alive()) {
