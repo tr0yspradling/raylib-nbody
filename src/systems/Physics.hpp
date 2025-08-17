@@ -53,7 +53,7 @@ namespace nbody {
                 Acceleration* a;
             };
             std::vector<Row> rows;
-            rows.reserve(static_cast<size_t>(w.count(flecs::type<Position, Velocity, Mass, Pinned, Acceleration>())));
+            rows.reserve(1000);
             w.each([&](const flecs::entity e, Position& p, Velocity& v, Mass& m, Pinned& pin, Acceleration& a) {
                 rows.push_back(Row{e, &p, &v, &m, &pin, &a});
             });
