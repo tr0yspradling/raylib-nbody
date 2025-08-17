@@ -125,7 +125,6 @@ endif()
 add_executable(raylib_nbody
     src/main.cpp
     src/core/Config.hpp
-    src/core/Camera.hpp
     src/components/Components.hpp
     src/systems/Physics.hpp
     src/systems/Render.hpp

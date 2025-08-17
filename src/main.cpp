@@ -8,13 +8,12 @@
 #include <rlImGui.h>
 
 #include "components/Components.hpp"
-#include "core/Camera.hpp"
 #include "core/Config.hpp"
 
 // New header-only systems
-#include "systems/Physics.hpp"
 #include "systems/Camera.hpp"
 #include "systems/Interaction.hpp"
+#include "systems/Physics.hpp"
 #include "systems/Render.hpp"
 #include "systems/UI.hpp"
 
@@ -47,7 +46,7 @@ namespace constants {
     constexpr float seed_center_x = 640.0F;
     constexpr float seed_center_y = 360.0F;
     constexpr float seed_offset_x = 200.0F;  // +/- from center for initial bodies
-}
+}  // namespace constants
 
 namespace scenario {
     void CreateInitialBodies(const flecs::world& world) {
@@ -63,17 +62,18 @@ namespace scenario {
                 .set<Pinned>({pinned})
                 .set<Tint>({col})
                 .set<Trail>({{}})
-                .add<Selectable>()        // Make all bodies selectable
-                .set<Draggable>({true, constants::drag_vel_scale}); // Make all bodies draggable
+                .add<Selectable>()  // Make all bodies selectable
+                .set<Draggable>({true, constants::drag_vel_scale});  // Make all bodies draggable
         };
 
-        mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED, false);
-        mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y}, {0.0f, constants::seed_speed},
-           constants::seed_small_mass, BLUE, false);
-        mk({constants::seed_center_x - constants::seed_offset_x, constants::seed_center_y}, {0.0f, -constants::seed_speed},
-           constants::seed_small_mass, GREEN, false);
+        mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED,
+           false);
+        mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y},
+           {0.0f, constants::seed_speed}, constants::seed_small_mass, BLUE, false);
+        mk({constants::seed_center_x - constants::seed_offset_x, constants::seed_center_y},
+           {0.0f, -constants::seed_speed}, constants::seed_small_mass, GREEN, false);
     }
-}
+}  // namespace scenario
 
 class Application {
 public:
@@ -83,7 +83,7 @@ public:
         InitWindow(constants::window_width, constants::window_height, "N-Body Gravity Simulation • ECS");
         SetTargetFPS(constants::target_fps);
         rlImGuiSetup(true);
-        
+
         InitializeWorld();
     }
 
@@ -124,7 +124,7 @@ private:
         // Get camera and configuration
         raylib::Camera2D* camera = nbody::Camera::Get(world_);
         auto* cfg = world_.get_mut<Config>();
-        
+
         if (!cfg || !camera) return;
 
         // UI first (this sets up ImGui state)
@@ -133,19 +133,19 @@ private:
 
         // Check if UI wants to capture mouse
         const ImGuiIO& io = ImGui::GetIO();
-        const bool ui_blocks_mouse = 
+        const bool ui_blocks_mouse =
             io.WantCaptureMouse && (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemHovered());
 
         // Zoom at mouse when UI not captured
         if (!ui_blocks_mouse) {
             if (const float wheel = GetMouseWheelMove(); wheel != 0.0F) {
-                nbody::CameraUtils::ZoomAtMouse(*camera, wheel);
+                nbody::Camera::ZoomAtMouse(*camera, wheel);
             }
         }
 
         // Calculate delta time for physics
         const float dt = (cfg->useFixedDt ? cfg->fixedDt : GetFrameTime()) * std::max(0.0f, cfg->timeScale);
-        
+
         // Process interaction input (mouse handling, selection, etc.)
         if (!ui_blocks_mouse) {
             nbody::Interaction::ProcessInput(world_, *camera);
@@ -196,14 +196,13 @@ private:
         const int rw = GetRenderWidth();
         const int rh = GetRenderHeight();
         const ImGuiIO& io = ImGui::GetIO();
-        
+
         char buf[256];
         snprintf(buf, sizeof(buf),
                  "SWxSH=%dx%d RWxRH=%dx%d DPI=(%.2f,%.2f) cam.zoom=%.3f off=(%.1f,%.1f) tgt=(%.1f,%.1f) "
                  "io.Display=(%.0f,%.0f) FBScale=(%.2f,%.2f)",
                  sw, sh, rw, rh, x, y, cam.zoom, cam.offset.x, cam.offset.y, cam.target.x, cam.target.y,
-                 io.DisplaySize.x, io.DisplaySize.y, io.DisplayFramebufferScale.x,
-                 io.DisplayFramebufferScale.y);
+                 io.DisplaySize.x, io.DisplaySize.y, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
         DrawText(buf, 10, 10, 12, RAYWHITE);
     }
 };
