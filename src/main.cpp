@@ -66,7 +66,7 @@ namespace scenario {
                 .add<Selectable>()        // Make all bodies selectable
                 .set<Draggable>({true, constants::drag_vel_scale}); // Make all bodies draggable
         };
-        
+
         mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED, false);
         mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y}, {0.0f, constants::seed_speed},
            constants::seed_small_mass, BLUE, false);
@@ -173,8 +173,7 @@ private:
         }
 
         // Get configuration for rendering
-        const auto* cfg = world_.get<Config>();
-        if (cfg) {
+        if (const auto* cfg = world_.get<Config>()) {
             // Render the physics scene
             nbody::Renderer::RenderScene(world_, *cfg, *camera);
         }
@@ -190,7 +189,7 @@ private:
         EndDrawing();
     }
 
-    void RenderDebugHUD(const raylib::Camera2D& cam) {
+    static void RenderDebugHUD(const raylib::Camera2D& cam) {
         auto [x, y] = GetWindowScaleDPI();
         const int sw = GetScreenWidth();
         const int sh = GetScreenHeight();
