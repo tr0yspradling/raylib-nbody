@@ -11,6 +11,27 @@
 #include "core/Camera.hpp"
 #include "core/Config.hpp"
 
+// Forward declarations for system registration
+namespace ecs {
+    void register_physics_systems(const flecs::world&);
+    void register_camera_system(const flecs::world&);
+    void register_interaction_system(const flecs::world&);
+    
+    // System functions
+    void render_scene(const flecs::world&, const Config&, raylib::Camera2D&);
+    void draw_ui(const flecs::world&, raylib::Camera2D&);
+    void ui_begin();
+    void ui_end();
+    
+    // Camera system functions
+    raylib::Camera2D* get_camera(const flecs::world&);
+    void center_camera_on_com(const flecs::world&);
+    
+    // Interaction system functions  
+    void process_interaction_input(const flecs::world&, const raylib::Camera2D&);
+    void render_interaction_overlay(const flecs::world&, const raylib::Camera2D&);
+}
+
 namespace constants {
     // Window and timing
     constexpr int window_width = 1280;
@@ -40,211 +61,175 @@ namespace constants {
     constexpr float seed_center_x = 640.0F;
     constexpr float seed_center_y = 360.0F;
     constexpr float seed_offset_x = 200.0F;  // +/- from center for initial bodies
-}  // namespace constants
+}
 
-namespace ecs {
-    void register_physics_systems(const flecs::world&);
-    void render_scene(const flecs::world&, const Config&, raylib::Camera2D&);
-    void draw_ui(const flecs::world&, raylib::Camera2D&);
-    void ui_begin();
-    void ui_end();
-}  // namespace ecs
-
-namespace ecs {
-    // Utility: pick the nearest entity within a radius
-    static flecs::entity PickEntity(const flecs::world& world, const raylib::Vector2& worldPos, const float radius) {
-        flecs::entity best = flecs::entity::null();
-        float bestDist2 = radius * radius;
-        world.each([&](const flecs::entity ent, const Position& pos, const Mass& mass) {
-            const raylib::Vector2 delta = worldPos - pos.value;
-            const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
-            const double safeMass = std::max(1.0, static_cast<double>(mass.value));
-            const float bodyRadius = std::max(6.0F, static_cast<float>(std::cbrt(safeMass)));
-            if (const float pickRadius = (radius + bodyRadius); dist2 <= pickRadius * pickRadius && dist2 < bestDist2) {
-                best = ent;
-                bestDist2 = dist2;
-            }
-        });
-        return best;
+namespace scenario {
+    void CreateInitialBodies(const flecs::world& world) {
+        // Create entities with both original and new interaction components
+        auto mk = [&](const raylib::Vector2 pos, const raylib::Vector2 vel, const float mass, const raylib::Color col,
+                      const bool pinned) {
+            world.entity()
+                .set<Position>({pos})
+                .set<Velocity>({vel})
+                .set<Acceleration>({raylib::Vector2{0, 0}})
+                .set<PrevAcceleration>({raylib::Vector2{0, 0}})
+                .set<Mass>({mass})
+                .set<Pinned>({pinned})
+                .set<Tint>({col})
+                .set<Trail>({{}})
+                .add<Selectable>()        // Make all bodies selectable
+                .set<Draggable>({true, constants::drag_vel_scale}); // Make all bodies draggable
+        };
+        
+        mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED, false);
+        mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y}, {0.0f, constants::seed_speed},
+           constants::seed_small_mass, BLUE, false);
+        mk({constants::seed_center_x - constants::seed_offset_x, constants::seed_center_y}, {0.0f, -constants::seed_speed},
+           constants::seed_small_mass, GREEN, false);
     }
-}  // namespace ecs
+}
 
-auto main() -> int {
-    SetConfigFlags(FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
-    raylib::Window window(constants::window_width, constants::window_height, "N-Body Gravity Simulation • ECS");
-    SetTargetFPS(constants::target_fps);
-    rlImGuiSetup(true);
-
-    // Camera
-    raylib::Camera2D cam{};
-    InitCamera(cam);
-
-    // World + systems
-    flecs::world world;
-    world.set<Config>({});
-    world.set<Selection>({0});
-    ecs::register_physics_systems(world);
-
-    // Initial scenario: inline seed (3 bodies)
-    auto mk = [&](const raylib::Vector2 pos, const raylib::Vector2 vel, const float mass, const raylib::Color col,
-                  const bool pinned) {
-        world.entity()
-            .set<Position>({pos})
-            .set<Velocity>({vel})
-            .set<Acceleration>({raylib::Vector2{0, 0}})
-            .set<PrevAcceleration>({raylib::Vector2{0, 0}})
-            .set<Mass>({mass})
-            .set<Pinned>({pinned})
-            .set<Tint>({col})
-            .set<Trail>({{}});
-    };
-    mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED, false);
-    mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y}, {0.0f, constants::seed_speed},
-       constants::seed_small_mass, BLUE, false);
-    mk({constants::seed_center_x - constants::seed_offset_x, constants::seed_center_y}, {0.0f, -constants::seed_speed},
-       constants::seed_small_mass, GREEN, false);
-
-    // Center camera to initial COM for robust centering regardless of DPI
-    {
-        double Px = 0, Py = 0, M = 0, Cx = 0, Cy = 0;
-        world.each([&](const Position& p, const Mass& m) {
-            Px += static_cast<double>(m.value) * 0.0;  // not used
-            Py += static_cast<double>(m.value) * 0.0;  // not used
-            Cx += static_cast<double>(m.value) * static_cast<double>(p.value.x);
-            Cy += static_cast<double>(m.value) * static_cast<double>(p.value.y);
-            M += static_cast<double>(m.value);
-        });
-        if (M > 0.0) cam.target = {static_cast<float>(Cx / M), static_cast<float>(Cy / M)};
+class Application {
+public:
+    Application() {
+        SetConfigFlags(FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
+        // Initialize window after setting flags
+        InitWindow(constants::window_width, constants::window_height, "N-Body Gravity Simulation • ECS");
+        SetTargetFPS(constants::target_fps);
+        rlImGuiSetup(true);
+        
+        InitializeWorld();
     }
 
-    // Input/drag state
-    bool draggingVel = false;
-    raylib::Vector2 dragWorld{0, 0};
-    bool showDrag = false;
-    constexpr float dragVelScale = constants::drag_vel_scale;
-    bool lmbPanning = false;
-    flecs::entity lmbPickCandidate = flecs::entity::null();
-    float lmbDragDistSq = 0.0f;
-    constexpr float selectThresholdSq = constants::select_threshold_sq;
+    ~Application() {
+        rlImGuiShutdown();
+        CloseWindow();
+    }
 
-    while (!raylib::Window::ShouldClose()) {
+    void Run() {
+        while (!WindowShouldClose()) {
+            Update();
+            Render();
+        }
+    }
+
+private:
+    flecs::world world_;
+
+    void InitializeWorld() const {
+        // Initialize singleton components
+        world_.set<Config>({});
+
+        // Register all systems
+        ecs::register_physics_systems(world_);
+        ecs::register_camera_system(world_);
+        ecs::register_interaction_system(world_);
+
+        // Create initial scenario
+        scenario::CreateInitialBodies(world_);
+
+        // Center camera to initial COM
+        ecs::center_camera_on_com(world_);
+    }
+
+    void Update() const {
         const double frameStart = GetTime();
 
+        // Get camera and configuration
+        raylib::Camera2D* camera = ecs::get_camera(world_);
+        auto* cfg = world_.get_mut<Config>();
+        
+        if (!cfg || !camera) return;
+
+        // UI first (this sets up ImGui state)
+        ecs::ui_begin();
+        ecs::draw_ui(world_, *camera);
+
+        // Check if UI wants to capture mouse
+        const ImGuiIO& io = ImGui::GetIO();
+        const bool ui_blocks_mouse = 
+            io.WantCaptureMouse && (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemHovered());
+
+        // Zoom at mouse when UI not captured
+        if (!ui_blocks_mouse) {
+            if (const float wheel = GetMouseWheelMove(); wheel != 0.0F) {
+                ZoomCameraAtMouse(*camera, wheel);
+            }
+        }
+
+        // Calculate delta time for physics
+        const float dt = (cfg->useFixedDt ? cfg->fixedDt : GetFrameTime()) * std::max(0.0f, cfg->timeScale);
+        
+        // Process interaction input (mouse handling, selection, etc.)
+        if (!ui_blocks_mouse) {
+            ecs::process_interaction_input(world_, *camera);
+        }
+
+        // Progress ECS world (runs physics and other systems)
+        if (!cfg->paused) {
+            [[maybe_unused]] auto progress = world_.progress(dt);
+        }
+
+        // Track frame timing
+        cfg->lastStepMs = (GetTime() - frameStart) * 1000.0;
+    }
+
+    void Render() {
         BeginDrawing();
         ClearBackground(constants::background);
 
-        // UI & controls
-        ecs::ui_begin();
-        ecs::draw_ui(world, cam);
-
-        auto* cfg = world.get_mut<Config>();
-        auto* sel = world.get_mut<Selection>();
-        const ImGuiIO& io = ImGui::GetIO();
-        const bool ui_blocks_mouse =
-            io.WantCaptureMouse && (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemHovered());
-
-        const float dt = (cfg->useFixedDt ? cfg->fixedDt : GetFrameTime()) * std::max(0.0f, cfg->timeScale);
-        if (!cfg->paused) {
-            [[maybe_unused]] const auto world_progressed = world.progress(dt);
+        // Get camera for rendering
+        raylib::Camera2D* camera = ecs::get_camera(world_);
+        if (!camera) {
+            ecs::ui_end();
+            EndDrawing();
+            return;
         }
 
-        // Zoom at mouse when UI not captured
-        if (const float wheel = GetMouseWheelMove(); !ui_blocks_mouse && wheel != 0.0F) {
-            ZoomCameraAtMouse(cam, wheel);
+        // Get configuration for rendering
+        const auto* cfg = world_.get<Config>();
+        if (cfg) {
+            // Render the physics scene
+            ecs::render_scene(world_, *cfg, *camera);
         }
 
-        // Pan/select
-        if (!ui_blocks_mouse) {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                raylib::Vector2 wpos = GetScreenToWorld2D(GetMousePosition(), cam);
-                lmbPickCandidate = ecs::PickEntity(world, wpos, constants::pick_radius_px / cam.zoom);
-                lmbPanning = !lmbPickCandidate.is_alive();
-                lmbDragDistSq = 0.0f;
-            }
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                raylib::Vector2 dpx = GetMouseDelta();
-                lmbDragDistSq += dpx.x * dpx.x + dpx.y * dpx.y;
-                if (lmbPanning) {
-                    const raylib::Vector2 delta = dpx * (-1.0f / cam.zoom);
-                    cam.target = Vector2Add(cam.target, delta);
-                }
-            }
-            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                if (!lmbPanning && lmbPickCandidate.is_alive() && lmbDragDistSq <= selectThresholdSq) {
-                    sel->id = lmbPickCandidate.id();
-                }
-                lmbPanning = false;
-                lmbPickCandidate = flecs::entity::null();
-                lmbDragDistSq = 0.0f;
-            }
-        }
+        // Render interaction overlays (selection rings, drag visuals)
+        ecs::render_interaction_overlay(world_, *camera);
 
-        // Right-drag to set velocity of selected
-        showDrag = false;
-        flecs::entity selected = (sel->id != 0 ? world.entity(sel->id) : flecs::entity::null());
-        if (!ui_blocks_mouse && selected.is_alive()) {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-                draggingVel = true;
-            }
-            if (draggingVel && IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-                dragWorld = GetScreenToWorld2D(GetMousePosition(), cam);
-                showDrag = true;
-                cfg->paused = true;
-                const auto p = selected.get<Position>();
-                if (const auto v = selected.get_mut<Velocity>(); p != nullptr && v != nullptr) {
-                    v->value = (dragWorld - p->value) * dragVelScale;
-                }
-            }
-            if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) {
-                draggingVel = false;
-            }
-        }
+        // Debug HUD for camera/DPI diagnostics
+        RenderDebugHUD(*camera);
 
-        // Render scene
-        ecs::render_scene(world, *cfg, cam);
-
-        // Overlay selection and velocity-drag visuals (draw in world-space)
-        BeginMode2D(cam);
-        if (selected.is_alive()) {
-            const auto p = selected.get<Position>();
-            if (const auto m = selected.get<Mass>(); p != nullptr && m != nullptr) {
-                const float r = static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(m->value)))) +
-                    constants::ring_extra_radius;
-                DrawRing(p->value, r, r + constants::ring_thickness, 0, 360, 32, YELLOW);
-            }
-        }
-        if (showDrag && selected.is_alive()) {
-            if (const auto p = selected.get<Position>(); p != nullptr) {
-                DrawLineEx(p->value, dragWorld, constants::drag_line_width, YELLOW);
-                DrawCircleV(dragWorld, constants::drag_circle_radius, YELLOW);
-            }
-        }
-        EndMode2D();
-
-        // Debug HUD for DPI/camera diagnostics (top-left)
-        {
-            auto [x, y] = GetWindowScaleDPI();
-            const int sw = GetScreenWidth();
-            const int sh = GetScreenHeight();
-            const int rw = GetRenderWidth();
-            const int rh = GetRenderHeight();
-            const ImGuiIO& io2 = ImGui::GetIO();
-            char buf[256];
-            snprintf(buf, sizeof(buf),
-                     "SWxSH=%dx%d RWxRH=%dx%d DPI=(%.2f,%.2f) cam.zoom=%.3f off=(%.1f,%.1f) tgt=(%.1f,%.1f) "
-                     "io.Display=(%.0f,%.0f) FBScale=(%.2f,%.2f)",
-                     sw, sh, rw, rh, x, y, cam.zoom, cam.offset.x, cam.offset.y, cam.target.x, cam.target.y,
-                     io2.DisplaySize.x, io2.DisplaySize.y, io2.DisplayFramebufferScale.x,
-                     io2.DisplayFramebufferScale.y);
-            DrawText(buf, 10, 10, 12, RAYWHITE);
-        }
-
-        // End frame
-        cfg->lastStepMs = (GetTime() - frameStart) * 1000.0;
+        // End UI frame and drawing (UI was started in Update)
         ecs::ui_end();
         EndDrawing();
     }
 
-    rlImGuiShutdown();
-    return 0;
+    void RenderDebugHUD(const raylib::Camera2D& cam) {
+        auto [x, y] = GetWindowScaleDPI();
+        const int sw = GetScreenWidth();
+        const int sh = GetScreenHeight();
+        const int rw = GetRenderWidth();
+        const int rh = GetRenderHeight();
+        const ImGuiIO& io = ImGui::GetIO();
+        
+        char buf[256];
+        snprintf(buf, sizeof(buf),
+                 "SWxSH=%dx%d RWxRH=%dx%d DPI=(%.2f,%.2f) cam.zoom=%.3f off=(%.1f,%.1f) tgt=(%.1f,%.1f) "
+                 "io.Display=(%.0f,%.0f) FBScale=(%.2f,%.2f)",
+                 sw, sh, rw, rh, x, y, cam.zoom, cam.offset.x, cam.offset.y, cam.target.x, cam.target.y,
+                 io.DisplaySize.x, io.DisplaySize.y, io.DisplayFramebufferScale.x,
+                 io.DisplayFramebufferScale.y);
+        DrawText(buf, 10, 10, 12, RAYWHITE);
+    }
+};
+
+auto main() -> int {
+    try {
+        Application app;
+        app.Run();
+        return 0;
+    } catch (const std::exception& e) {
+        // Log error if needed
+        return 1;
+    }
 }
