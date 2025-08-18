@@ -22,15 +22,17 @@ Single source of truth for OpenAI agents and Claude Code. Link or symlink `CLAUD
 **Notes**
 
 - Works with Ninja and default CMake generators. Prefer the canonical out-of-source flow when possible.
-- raylib must be installed locally; ImGui and rlImGui are fetched during configure.
+- Ensure submodules are present: `git submodule update --init --recursive`.
+- raylib development files must be available locally. Other deps (raylib-cpp, ImGui, rlImGui, flecs) are vendored.
 
 ---
 
 ## Project Structure
 
 - Source entry: `src/main.cpp` (C++23).
-- Build system: `CMakeLists.txt` uses FetchContent for ImGui/rlImGui.
-- Add new modules under `src/` (e.g., `src/physics.*`, `src/ui.*`).
+- ECS components in `src/components/`, shared config/constants in `src/core/`.
+- Systems (physics, camera, interaction, rendering, UI) live under `src/systems/`.
+- Dependencies are managed via vendored submodules in `external/`.
 
 ---
 
@@ -38,20 +40,22 @@ Single source of truth for OpenAI agents and Claude Code. Link or symlink `CLAUD
 
 **Libraries and language**
 
-- raylib for windowing and rendering.
+- raylib for windowing and rendering (via raylib-cpp wrapper).
+- flecs for the ECS world.
 - ImGui + rlImGui for UI.
 - C++23 with STL containers.
 
 **Core simulation components**
 
-- `Body` struct: position, velocity, mass, color, pinned state.
-- Physics integrators: Semi-Implicit Euler and Velocity Verlet.
-- UI: time control, physics parameters, visuals, body editing.
-- Camera: pan, zoom, body selection, velocity dragging.
-- Diagnostics: energy checks with auto-pause on non-finite values.
+- ECS components: `Position`, `Velocity`, `Acceleration`, `PrevAcceleration`, `Mass`,
+  `Pinned`, `Tint`, `Trail`, `Selectable`, `Selected`, `Draggable`.
+- Systems: physics (gravity, integration, trails), camera, interaction, rendering, and UI.
+- Integrators: Semi-Implicit Euler and Velocity Verlet.
+- Diagnostics: energy/momentum checks with auto-pause on non-finite values.
 
 **Key patterns**
 
+- flecs systems drive the update loop.
 - Physics loop: acceleration computation → integration step → trail update.
 - Immediate-mode UI state in separate control windows.
 - Input routing between UI and world space.
