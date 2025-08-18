@@ -20,9 +20,9 @@ namespace nbody {
             bool isDraggingSelected = false;
             bool isPanning = false;
             float dragDistancePixels = 0.0f;
-            raylib::Vector2 dragStartWorld{0, 0};
-            raylib::Vector2 currentDragWorld{0, 0};
-            raylib::Vector2 selectedDragOffset{0, 0};
+            DVec2 dragStartWorld{0.0, 0.0};
+            DVec2 currentDragWorld{0.0, 0.0};
+            DVec2 selectedDragOffset{0.0, 0.0};
             flecs::entity panCandidate = flecs::entity::null();
             flecs::entity hoveredEntity = flecs::entity::null();
             flecs::entity selectedEntity = flecs::entity::null();
@@ -58,7 +58,7 @@ namespace nbody {
             if (ui_blocks_mouse) return;
 
             const raylib::Vector2 mouseScreen = GetMousePosition();
-            const raylib::Vector2 mouseWorld = GetScreenToWorld2D(mouseScreen, camera);
+            const DVec2 mouseWorld = FromVector2(GetScreenToWorld2D(mouseScreen, camera));
             const float pickRadius = nbody::constants::pickRadiusPx / camera.zoom;
 
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -136,7 +136,7 @@ namespace nbody {
                         std::max(nbody::constants::minBodyRadius,
                                  static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(mass->value)))));
                     const float ringRadius = bodyRadius + nbody::constants::ringExtraRadius;
-                    DrawRing(pos->value, ringRadius, ringRadius + nbody::constants::ringThickness,
+                    DrawRing(ToVector2(pos->value), ringRadius, ringRadius + nbody::constants::ringThickness,
                              nbody::constants::ringStartAngle, nbody::constants::ringEndAngle,
                              nbody::constants::ringSegments, YELLOW);
                     DrawCircleLines(static_cast<int>(pos->value.x), static_cast<int>(pos->value.y),
@@ -148,15 +148,14 @@ namespace nbody {
         }
 
     private:
-        static flecs::entity FindEntityAtPosition(const flecs::world& world, const raylib::Vector2& worldPos,
-                                                  float pickRadius) {
+        static flecs::entity FindEntityAtPosition(const flecs::world& world, const DVec2& worldPos, float pickRadius) {
             flecs::entity best = flecs::entity::null();
             float bestDist2 = pickRadius * pickRadius;
             world.each(
                 [&](const flecs::entity ent, const Position& pos, const Mass& mass, const Selectable& selectable) {
                     if (!selectable.canSelect) return;
-                    const raylib::Vector2 delta = worldPos - pos.value;
-                    const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
+                    const DVec2 delta = worldPos - pos.value;
+                    const float dist2 = static_cast<float>(delta.x * delta.x + delta.y * delta.y);
                     const double safeMass = std::max(1.0, static_cast<double>(mass.value));
                     const float bodyRadius =
                         std::max(nbody::constants::minBodyRadius, static_cast<float>(std::cbrt(safeMass)));
@@ -169,7 +168,7 @@ namespace nbody {
             return best;
         }
 
-        static void StartVelocityDrag(const flecs::world& world, const raylib::Vector2& worldPos) {
+        static void StartVelocityDrag(const flecs::world& world, const DVec2& worldPos) {
             auto* state = world.get_mut<State>();
             auto* cfg = world.get_mut<Config>();
             if (!state || !cfg || !state->selectedEntity.is_alive()) return;
@@ -181,7 +180,7 @@ namespace nbody {
             cfg->paused = true;
         }
 
-        static void UpdateVelocityDrag(const flecs::world& world, const raylib::Vector2& worldPos) {
+        static void UpdateVelocityDrag(const flecs::world& world, const DVec2& worldPos) {
             auto* state = world.get_mut<State>();
             if (!state || !state->isDraggingVelocity || !state->selectedEntity.is_alive()) return;
             state->currentDragWorld = worldPos;
@@ -189,8 +188,8 @@ namespace nbody {
             const auto* draggable = state->selectedEntity.get<Draggable>();
             auto* velocity = state->selectedEntity.get_mut<Velocity>();
             if (position && draggable && velocity) {
-                const raylib::Vector2 dragVector = worldPos - position->value;
-                velocity->value = dragVector * draggable->dragScale;
+                const DVec2 dragVector = worldPos - position->value;
+                velocity->value = dragVector * static_cast<double>(draggable->dragScale);
             }
         }
 

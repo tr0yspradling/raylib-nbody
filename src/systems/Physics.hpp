@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <flecs.h>
-#include <raylib-cpp.hpp>
-#include <raymath.h>
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
@@ -65,12 +63,12 @@ namespace nbody {
 
             const size_t n = rows.size();
             if (n == 0) return;
-            std::vector acc(n, raylib::Vector2{0, 0});
+            std::vector<DVec2> acc(n, DVec2{0.0, 0.0});
 
             for (size_t i = 0; i < n; ++i) {
                 for (size_t j = i + 1; j < n; ++j) {
-                    const double dx = static_cast<double>(rows[j].p->value.x) - static_cast<double>(rows[i].p->value.x);
-                    const double dy = static_cast<double>(rows[j].p->value.y) - static_cast<double>(rows[i].p->value.y);
+                    const double dx = rows[j].p->value.x - rows[i].p->value.x;
+                    const double dy = rows[j].p->value.y - rows[i].p->value.y;
                     const double r2 = dx * dx + dy * dy + eps2;
                     const double invR = 1.0 / std::sqrt(r2);
                     const double invR3 = invR * invR * invR;
@@ -81,12 +79,12 @@ namespace nbody {
                     const double ay_j = -G * static_cast<double>(rows[i].m->value) * dy * invR3;
 
                     if (!rows[i].pin->value) {
-                        acc[i].x += static_cast<float>(ax_i);
-                        acc[i].y += static_cast<float>(ay_i);
+                        acc[i].x += ax_i;
+                        acc[i].y += ay_i;
                     }
                     if (!rows[j].pin->value) {
-                        acc[j].x += static_cast<float>(ax_j);
-                        acc[j].y += static_cast<float>(ay_j);
+                        acc[j].x += ax_j;
+                        acc[j].y += ay_j;
                     }
                 }
             }
@@ -97,23 +95,24 @@ namespace nbody {
         static void integrate(const flecs::world& w, const float dt) {
             const Config& cfg = *w.get<Config>();
             const float maxSpeed = cfg.maxSpeed;
+            const double ddt = static_cast<double>(dt);
 
             if (const int integrator = cfg.integrator; integrator == 0) {
                 w.each([&](Position& p, Velocity& v, const Acceleration& a, const Pinned& pin) {
                     if (pin.value) return;
-                    v.value += a.value * dt;
+                    v.value += a.value * ddt;
                     if (maxSpeed > 0.0f) {
-                        if (const float vlen = std::sqrt(v.value.x * v.value.x + v.value.y * v.value.y);
-                            vlen > maxSpeed)
-                            v.value = v.value * (maxSpeed / vlen);
+                        const double vlen = Length(v.value);
+                        if (vlen > static_cast<double>(maxSpeed))
+                            v.value = v.value * (static_cast<double>(maxSpeed) / vlen);
                     }
-                    p.value += v.value * dt;
+                    p.value += v.value * ddt;
                 });
             } else {
                 w.each([&](Position& p, const Velocity& v, const Acceleration& a, PrevAcceleration& a0,
                            const Pinned& pin) {
                     if (pin.value) return;
-                    const raylib::Vector2 dx = v.value * dt + a.value * (0.5f * dt * dt);
+                    const DVec2 dx = v.value * ddt + a.value * (0.5 * ddt * ddt);
                     p.value += dx;
                     a0.value = a.value;
                 });
@@ -122,12 +121,12 @@ namespace nbody {
 
                 w.each([&](Velocity& v, const Acceleration& a, const PrevAcceleration& a0, const Pinned& pin) {
                     if (pin.value) return;
-                    const raylib::Vector2 avg = (a0.value + a.value) * 0.5f;
-                    v.value += avg * dt;
+                    const DVec2 avg = (a0.value + a.value) * 0.5;
+                    v.value += avg * ddt;
                     if (maxSpeed > 0.0f) {
-                        if (const float vlen = std::sqrt(v.value.x * v.value.x + v.value.y * v.value.y);
-                            vlen > maxSpeed)
-                            v.value = v.value * (maxSpeed / vlen);
+                        const double vlen = Length(v.value);
+                        if (vlen > static_cast<double>(maxSpeed))
+                            v.value = v.value * (static_cast<double>(maxSpeed) / vlen);
                     }
                 });
             }

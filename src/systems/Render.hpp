@@ -27,21 +27,24 @@ namespace nbody {
                             nbody::constants::trailAlphaMin +
                                 static_cast<int>(nbody::constants::trailAlphaRange * static_cast<double>(k) / denom),
                             nbody::constants::trailAlphaMin, nbody::constants::trailAlphaMax));
-                        DrawLineV(t.points[k - 1], t.points[k], c);
+                        DrawLineV(ToVector2(t.points[k - 1]), ToVector2(t.points[k]), c);
                     }
                 });
             }
 
             w.each([&](const Position& p, const Velocity& v, const Acceleration& a, const Mass& m, const Tint& tint) {
                 const float r = static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(m.value))));
-                DrawCircleV(p.value, r, tint.value);
+                const raylib::Vector2 pos = ToVector2(p.value);
+                DrawCircleV(pos, r, tint.value);
                 if (cfg.drawVelocity) {
-                    const raylib::Vector2 tip = p.value + v.value * nbody::constants::velVectorScale;
-                    DrawLineEx(p.value, tip, nbody::constants::velLineWidth, WHITE);
+                    const raylib::Vector2 tip =
+                        ToVector2(p.value + v.value * static_cast<double>(nbody::constants::velVectorScale));
+                    DrawLineEx(pos, tip, nbody::constants::velLineWidth, WHITE);
                 }
                 if (cfg.drawAcceleration) {
-                    const raylib::Vector2 tip = p.value + a.value * nbody::constants::accVectorScale;
-                    DrawLineEx(p.value, tip, nbody::constants::accLineWidth, ORANGE);
+                    const raylib::Vector2 tip =
+                        ToVector2(p.value + a.value * static_cast<double>(nbody::constants::accVectorScale));
+                    DrawLineEx(pos, tip, nbody::constants::accLineWidth, ORANGE);
                 }
             });
 

@@ -150,6 +150,12 @@ target_link_libraries(raylib_nbody
         ${FLECS_LIB}
 )
 
+enable_testing()
+add_executable(two_body_test tests/two_body.cpp)
+target_include_directories(two_body_test PRIVATE src)
+target_link_libraries(two_body_test PRIVATE raylib_cpp ${FLECS_LIB})
+add_test(NAME two_body COMMAND two_body_test)
+
 # Add strict compiler warnings only to our own code
 if(MSVC)
     target_compile_options(raylib_nbody PRIVATE /W4)

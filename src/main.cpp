@@ -21,13 +21,12 @@
 namespace scenario {
     void CreateInitialBodies(const flecs::world& world) {
         // Create entities with both original and new interaction components
-        auto mk = [&](const raylib::Vector2 pos, const raylib::Vector2 vel, const float mass, const raylib::Color col,
-                      const bool pinned) {
+        auto mk = [&](const DVec2 pos, const DVec2 vel, const float mass, const raylib::Color col, const bool pinned) {
             world.entity()
                 .set<Position>({pos})
                 .set<Velocity>({vel})
-                .set<Acceleration>({raylib::Vector2{0, 0}})
-                .set<PrevAcceleration>({raylib::Vector2{0, 0}})
+                .set<Acceleration>({DVec2{0.0, 0.0}})
+                .set<PrevAcceleration>({DVec2{0.0, 0.0}})
                 .set<Mass>({mass})
                 .set<Pinned>({pinned})
                 .set<Tint>({col})
@@ -36,12 +35,12 @@ namespace scenario {
                 .set<Draggable>({true, nbody::constants::dragVelScale});  // Make all bodies draggable
         };
 
-        mk({nbody::constants::seedCenterX, nbody::constants::seedCenterY}, {0.0f, 0.0f},
+        mk(DVec2{nbody::constants::seedCenterX, nbody::constants::seedCenterY}, DVec2{0.0, 0.0},
            nbody::constants::seedCentralMass, RED, false);
-        mk({nbody::constants::seedCenterX + nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-           {0.0f, nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, BLUE, false);
-        mk({nbody::constants::seedCenterX - nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-           {0.0f, -nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, GREEN, false);
+        mk(DVec2{nbody::constants::seedCenterX + nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
+           DVec2{0.0, nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, BLUE, false);
+        mk(DVec2{nbody::constants::seedCenterX - nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
+           DVec2{0.0, -nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, GREEN, false);
     }
 }  // namespace scenario
 

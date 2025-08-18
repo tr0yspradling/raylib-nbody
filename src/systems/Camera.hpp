@@ -62,7 +62,7 @@ namespace nbody {
         static void FocusOnEntity(const flecs::world& world, flecs::entity entity) {
             auto* camComp = world.get_mut<CameraComponent>();
             if (!camComp) return;
-            if (const auto* pos = entity.get<Position>()) camComp->camera.target = pos->value;
+            if (const auto* pos = entity.get<Position>()) camComp->camera.target = ToVector2(pos->value);
         }
     };
 

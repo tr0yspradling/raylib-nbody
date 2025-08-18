@@ -4,19 +4,20 @@
 #include <vector>
 
 #include "../core/Constants.hpp"
+#include "../core/Vec2.hpp"
 
 // Basic physics/render components
 struct Position {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Velocity {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Acceleration {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct PrevAcceleration {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Mass {
     float value;
@@ -30,7 +31,7 @@ struct Tint {
 
 // Trail history per entity
 struct Trail {
-    std::vector<raylib::Vector2> points;
+    std::vector<DVec2> points;
 };
 
 // Selection and interaction components
