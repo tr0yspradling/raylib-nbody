@@ -10,6 +10,7 @@
 #include "components/Components.hpp"
 #include "core/Config.hpp"
 #include "core/Constants.hpp"
+#include "core/TrailPool.hpp"
 
 // New header-only systems
 #include "systems/Camera.hpp"
@@ -31,7 +32,7 @@ namespace scenario {
                 .set<Mass>({mass})
                 .set<Pinned>({pinned})
                 .set<Tint>({col})
-                .set<Trail>({{}})
+                .set<Trail>({nbody::TrailPool::Acquire()})
                 .add<Selectable>()  // Make all bodies selectable
                 .set<Draggable>({true, nbody::constants::dragVelScale});  // Make all bodies draggable
         };

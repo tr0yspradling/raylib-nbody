@@ -6,9 +6,11 @@
 #include <flecs.h>
 #include <raylib-cpp.hpp>
 #include <raymath.h>
+#include <utility>
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
+#include "../core/TrailPool.hpp"
 #include "../physics/SpatialPartition.hpp"
 
 namespace nbody {
@@ -156,9 +158,15 @@ namespace nbody {
 
         static void update_trails(const flecs::world& w) {
             const Config& cfg = *w.get<Config>();
-            if (!cfg.drawTrails) return;
             const int maxLen = std::max(0, cfg.trailMax);
+            if (!cfg.drawTrails || maxLen == 0) {
+                w.each([](Trail& t) {
+                    if (t.points.capacity() > 0) nbody::TrailPool::Release(std::move(t.points));
+                });
+                return;
+            }
             w.each([&](Trail& t, const Position& p) {
+                if (t.points.capacity() == 0) t.points = nbody::TrailPool::Acquire();
                 t.points.push_back(p.value);
                 if (static_cast<int>(t.points.size()) > maxLen) t.points.erase(t.points.begin());
             });

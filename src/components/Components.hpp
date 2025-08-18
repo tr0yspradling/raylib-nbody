@@ -1,9 +1,11 @@
 #pragma once
 
 #include <raylib-cpp.hpp>
+#include <utility>
 #include <vector>
 
 #include "../core/Constants.hpp"
+#include "../core/TrailPool.hpp"
 
 // Basic physics/render components
 struct Position {
@@ -31,6 +33,9 @@ struct Tint {
 // Trail history per entity
 struct Trail {
     std::vector<raylib::Vector2> points;
+    ~Trail() {
+        if (points.capacity() > 0) nbody::TrailPool::Release(std::move(points));
+    }
 };
 
 // Selection and interaction components

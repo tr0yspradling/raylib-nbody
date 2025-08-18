@@ -14,6 +14,7 @@
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
+#include "../core/TrailPool.hpp"
 #include "Camera.hpp"
 #include "Interaction.hpp"
 
@@ -137,7 +138,7 @@ namespace nbody {
                     .set<Mass>({std::max(nbody::constants::spawnMassMin, spawnMass)})
                     .set<Pinned>({spawnPinned})
                     .set<Tint>({RandomNiceColor()})
-                    .set<Trail>({{}})
+                    .set<Trail>({nbody::TrailPool::Acquire()})
                     .add<Selectable>()
                     .set<Draggable>({true, dragVelScale});
             }
@@ -226,7 +227,7 @@ namespace nbody {
                             .set(m)
                             .set(pin)
                             .set(t)
-                            .set(Trail{{}})
+                            .set(Trail{nbody::TrailPool::Acquire()})
                             .add<Selectable>()
                             .set<Draggable>({true, dragVelScale});
                     }
@@ -293,7 +294,7 @@ namespace nbody {
                     .set<Mass>({mass})
                     .set<Pinned>({pinned})
                     .set<Tint>({col})
-                    .set<Trail>({{}})
+                    .set<Trail>({nbody::TrailPool::Acquire()})
                     .add<Selectable>()
                     .set<Draggable>({true, nbody::constants::dragVelScale});
             };
