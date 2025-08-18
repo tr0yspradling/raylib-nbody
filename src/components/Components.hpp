@@ -3,6 +3,8 @@
 #include <raylib-cpp.hpp>
 #include <vector>
 
+#include "../core/Constants.hpp"
+
 // Basic physics/render components
 struct Position {
     raylib::Vector2 value;
@@ -42,7 +44,7 @@ struct Selected {
 
 struct Draggable {
     bool canDragVelocity = true;
-    float dragScale = 0.01f;
+    float dragScale = nbody::constants::dragVelScale;
 };
 
 // (removed) MouseInteraction: legacy input state no longer used

@@ -8,6 +8,7 @@
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
+#include "../core/Constants.hpp"
 #include "Camera.hpp"
 
 namespace nbody {
@@ -25,13 +26,6 @@ namespace nbody {
             flecs::entity panCandidate = flecs::entity::null();
             flecs::entity hoveredEntity = flecs::entity::null();
             flecs::entity selectedEntity = flecs::entity::null();
-        };
-
-        struct Constants {
-            static constexpr float pickRadiusPx = 24.0F;
-            static constexpr float selectThreshold = 3.0F;
-            static constexpr float ringExtraRadius = 4.0F;
-            static constexpr float ringThickness = 3.5F;
         };
 
         static void Register(const flecs::world& world) { world.set<State>({}); }
@@ -65,7 +59,7 @@ namespace nbody {
 
             const raylib::Vector2 mouseScreen = GetMousePosition();
             const raylib::Vector2 mouseWorld = GetScreenToWorld2D(mouseScreen, camera);
-            const float pickRadius = Constants::pickRadiusPx / camera.zoom;
+            const float pickRadius = nbody::constants::pickRadiusPx / camera.zoom;
 
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 flecs::entity entityAtMouse = FindEntityAtPosition(world, mouseWorld, pickRadius);
@@ -113,7 +107,8 @@ namespace nbody {
                     state->panCandidate = flecs::entity::null();
                     state->dragDistancePixels = 0.0f;
                 } else if (!state->isPanning && state->panCandidate.is_alive() &&
-                           state->dragDistancePixels <= Constants::selectThreshold) {
+                           state->dragDistancePixels * state->dragDistancePixels <=
+                               nbody::constants::selectThresholdSq) {
                     Select(world, state->panCandidate);
                 }
                 state->isPanning = false;
@@ -138,11 +133,15 @@ namespace nbody {
                 const auto* mass = state->selectedEntity.get<Mass>();
                 if (pos && mass) {
                     const float bodyRadius =
-                        std::max(6.0F, static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(mass->value)))));
-                    const float ringRadius = bodyRadius + Constants::ringExtraRadius;
-                    DrawRing(pos->value, ringRadius, ringRadius + Constants::ringThickness, 0, 360, 32, YELLOW);
-                    DrawCircleLines(static_cast<int>(pos->value.x), static_cast<int>(pos->value.y), bodyRadius + 2.0f,
-                                    ColorAlpha(WHITE, 0.5f));
+                        std::max(nbody::constants::minBodyRadius,
+                                 static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(mass->value)))));
+                    const float ringRadius = bodyRadius + nbody::constants::ringExtraRadius;
+                    DrawRing(pos->value, ringRadius, ringRadius + nbody::constants::ringThickness,
+                             nbody::constants::ringStartAngle, nbody::constants::ringEndAngle,
+                             nbody::constants::ringSegments, YELLOW);
+                    DrawCircleLines(static_cast<int>(pos->value.x), static_cast<int>(pos->value.y),
+                                    bodyRadius + nbody::constants::ringInnerOffset,
+                                    ColorAlpha(WHITE, nbody::constants::selectedCircleAlpha));
                 }
             }
             EndMode2D();
@@ -159,7 +158,8 @@ namespace nbody {
                     const raylib::Vector2 delta = worldPos - pos.value;
                     const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
                     const double safeMass = std::max(1.0, static_cast<double>(mass.value));
-                    const float bodyRadius = std::max(6.0F, static_cast<float>(std::cbrt(safeMass)));
+                    const float bodyRadius =
+                        std::max(nbody::constants::minBodyRadius, static_cast<float>(std::cbrt(safeMass)));
                     const float totalPickRadius = pickRadius + bodyRadius;
                     if (dist2 <= totalPickRadius * totalPickRadius && dist2 < bestDist2) {
                         best = ent;

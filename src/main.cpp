@@ -9,6 +9,7 @@
 
 #include "components/Components.hpp"
 #include "core/Config.hpp"
+#include "core/Constants.hpp"
 
 // New header-only systems
 #include "systems/Camera.hpp"
@@ -16,37 +17,6 @@
 #include "systems/Physics.hpp"
 #include "systems/Render.hpp"
 #include "systems/UI.hpp"
-
-namespace constants {
-    // Window and timing
-    constexpr int window_width = 1280;
-    constexpr int window_height = 720;
-    constexpr int target_fps = 120;
-
-    // Background color
-    constexpr ::Color background{10, 10, 14, 255};
-
-    // Picking and dragging
-    constexpr float pick_radius_px = 24.0F;  // screen-space pick radius before zoom scaling
-    constexpr float select_threshold_sq = 9.0F;  // squared pixel drag threshold to treat as click
-    constexpr float drag_vel_scale = 0.01F;  // scale from drag vector to velocity
-
-    // Visual thickness/radii
-    constexpr float drag_line_width = 2.0F;
-    constexpr float drag_circle_radius = 3.0F;
-    constexpr float ring_extra_radius = 4.0F;
-    constexpr float ring_thickness = 3.5F;
-    [[maybe_unused]] constexpr float vel_line_width = 1.5F;
-    [[maybe_unused]] constexpr float acc_line_width = 1.0F;
-
-    // Seed scenario
-    constexpr float seed_small_mass = 12.0F;
-    constexpr float seed_central_mass = 4000.0F;
-    constexpr float seed_speed = 1.20F;
-    constexpr float seed_center_x = 640.0F;
-    constexpr float seed_center_y = 360.0F;
-    constexpr float seed_offset_x = 200.0F;  // +/- from center for initial bodies
-}  // namespace constants
 
 namespace scenario {
     void CreateInitialBodies(const flecs::world& world) {
@@ -63,15 +33,15 @@ namespace scenario {
                 .set<Tint>({col})
                 .set<Trail>({{}})
                 .add<Selectable>()  // Make all bodies selectable
-                .set<Draggable>({true, constants::drag_vel_scale});  // Make all bodies draggable
+                .set<Draggable>({true, nbody::constants::dragVelScale});  // Make all bodies draggable
         };
 
-        mk({constants::seed_center_x, constants::seed_center_y}, {0.0f, 0.0f}, constants::seed_central_mass, RED,
-           false);
-        mk({constants::seed_center_x + constants::seed_offset_x, constants::seed_center_y},
-           {0.0f, constants::seed_speed}, constants::seed_small_mass, BLUE, false);
-        mk({constants::seed_center_x - constants::seed_offset_x, constants::seed_center_y},
-           {0.0f, -constants::seed_speed}, constants::seed_small_mass, GREEN, false);
+        mk({nbody::constants::seedCenterX, nbody::constants::seedCenterY}, {0.0f, 0.0f},
+           nbody::constants::seedCentralMass, RED, false);
+        mk({nbody::constants::seedCenterX + nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
+           {0.0f, nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, BLUE, false);
+        mk({nbody::constants::seedCenterX - nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
+           {0.0f, -nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, GREEN, false);
     }
 }  // namespace scenario
 
@@ -80,8 +50,8 @@ public:
     Application() {
         SetConfigFlags(FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
         // Initialize window after setting flags
-        InitWindow(constants::window_width, constants::window_height, "N-Body Gravity Simulation • ECS");
-        SetTargetFPS(constants::target_fps);
+        InitWindow(nbody::constants::windowWidth, nbody::constants::windowHeight, "N-Body Gravity Simulation • ECS");
+        SetTargetFPS(nbody::constants::targetFps);
         rlImGuiSetup(true);
 
         InitializeWorld();
@@ -162,7 +132,7 @@ private:
 
     void Render() {
         BeginDrawing();
-        ClearBackground(constants::background);
+        ClearBackground(nbody::constants::background);
 
         // Get camera for rendering
         raylib::Camera2D* camera = nbody::Camera::Get(world_);
