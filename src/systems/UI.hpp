@@ -26,6 +26,7 @@ namespace nbody {
 
         static void Draw(const flecs::world& w, raylib::Camera2D& cam) {
             auto* cfg = w.get_mut<Config>();
+            if (!cfg) return;
             bool requestStep = false;
 
             ImGui::SetNextWindowPos(ImVec2(12, 12), ImGuiCond_FirstUseEver);
