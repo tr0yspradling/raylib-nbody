@@ -60,62 +60,11 @@ namespace nbody {
             const raylib::Vector2 mouseScreen = GetMousePosition();
             const raylib::Vector2 mouseWorld = GetScreenToWorld2D(mouseScreen, camera);
             const float pickRadius = nbody::constants::pickRadiusPx / camera.zoom;
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) HandleMousePress(world, state, mouseWorld, pickRadius);
 
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                flecs::entity entityAtMouse = FindEntityAtPosition(world, mouseWorld, pickRadius);
-                if (const auto* cfg = world.get<Config>(); cfg && cfg->paused && state->selectedEntity.is_alive() &&
-                    entityAtMouse.is_alive() && entityAtMouse.id() == state->selectedEntity.id()) {
-                    if (const auto* pos = state->selectedEntity.get<Position>()) {
-                        state->isDraggingSelected = true;
-                        state->isPanning = false;
-                        state->panCandidate = flecs::entity::null();
-                        state->selectedDragOffset = pos->value - mouseWorld;
-                    }
-                } else {
-                    if (entityAtMouse.is_alive()) {
-                        state->panCandidate = entityAtMouse;
-                        state->isPanning = false;
-                    } else {
-                        state->isPanning = true;
-                        state->panCandidate = flecs::entity::null();
-                    }
-                }
-                state->dragDistancePixels = 0.0f;
-            }
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) HandleMouseDrag(world, state, mouseWorld);
 
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                const raylib::Vector2 mouseDelta = GetMouseDelta();
-                state->dragDistancePixels += Vector2Length(mouseDelta);
-                if (state->isDraggingSelected && state->selectedEntity.is_alive()) {
-                    if (const auto* cfg = world.get<Config>(); cfg && cfg->paused) {
-                        if (auto* pos = state->selectedEntity.get_mut<Position>()) {
-                            pos->value = mouseWorld + state->selectedDragOffset;
-                        }
-                    }
-                }
-                if (state->isPanning) {
-                    if (auto* cam = Camera::Get(world)) {
-                        const raylib::Vector2 worldDelta = mouseDelta * (-1.0f / cam->zoom);
-                        cam->target = Vector2Add(cam->target, worldDelta);
-                    }
-                }
-            }
-
-            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                if (state->isDraggingSelected) {
-                    state->isDraggingSelected = false;
-                    state->panCandidate = flecs::entity::null();
-                    state->dragDistancePixels = 0.0f;
-                } else if (!state->isPanning && state->panCandidate.is_alive() &&
-                           state->dragDistancePixels * state->dragDistancePixels <=
-                               nbody::constants::selectThresholdSq) {
-                    Select(world, state->panCandidate);
-                }
-                state->isPanning = false;
-                state->panCandidate = flecs::entity::null();
-                state->dragDistancePixels = 0.0f;
-            }
-
+            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) HandleMouseRelease(world, state);
             if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) StartVelocityDrag(world, mouseWorld);
             if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && state->isDraggingVelocity)
                 UpdateVelocityDrag(world, mouseWorld);
@@ -167,6 +116,60 @@ namespace nbody {
                     }
                 });
             return best;
+        }
+
+        static void HandleMousePress(const flecs::world& world, State* state, const raylib::Vector2& mouseWorld, float pickRadius) {
+            flecs::entity entityAtMouse = FindEntityAtPosition(world, mouseWorld, pickRadius);
+            if (const auto* cfg = world.get<Config>(); cfg && cfg->paused && state->selectedEntity.is_alive() &&
+                entityAtMouse.is_alive() && entityAtMouse.id() == state->selectedEntity.id()) {
+                if (const auto* pos = state->selectedEntity.get<Position>()) {
+                    state->isDraggingSelected = true;
+                    state->isPanning = false;
+                    state->panCandidate = flecs::entity::null();
+                    state->selectedDragOffset = pos->value - mouseWorld;
+                }
+            } else {
+                if (entityAtMouse.is_alive()) {
+                    state->panCandidate = entityAtMouse;
+                    state->isPanning = false;
+                } else {
+                    state->isPanning = true;
+                    state->panCandidate = flecs::entity::null();
+                }
+            }
+            state->dragDistancePixels = 0.0f;
+        }
+
+        static void HandleMouseDrag(const flecs::world& world, State* state, const raylib::Vector2& mouseWorld) {
+            const raylib::Vector2 mouseDelta = GetMouseDelta();
+            state->dragDistancePixels += Vector2Length(mouseDelta);
+            if (state->isDraggingSelected && state->selectedEntity.is_alive()) {
+                if (const auto* cfg = world.get<Config>(); cfg && cfg->paused) {
+                    if (auto* pos = state->selectedEntity.get_mut<Position>()) {
+                        pos->value = mouseWorld + state->selectedDragOffset;
+                    }
+                }
+            }
+            if (state->isPanning) {
+                if (auto* cam = Camera::Get(world)) {
+                    const raylib::Vector2 worldDelta = mouseDelta * (-1.0f / cam->zoom);
+                    cam->target = Vector2Add(cam->target, worldDelta);
+                }
+            }
+        }
+
+        static void HandleMouseRelease(const flecs::world& world, State* state) {
+            if (state->isDraggingSelected) {
+                state->isDraggingSelected = false;
+                state->panCandidate = flecs::entity::null();
+                state->dragDistancePixels = 0.0f;
+            } else if (!state->isPanning && state->panCandidate.is_alive() &&
+                       state->dragDistancePixels * state->dragDistancePixels <= nbody::constants::selectThresholdSq) {
+                Select(world, state->panCandidate);
+            }
+            state->isPanning = false;
+            state->panCandidate = flecs::entity::null();
+            state->dragDistancePixels = 0.0f;
         }
 
         static void StartVelocityDrag(const flecs::world& world, const raylib::Vector2& worldPos) {
