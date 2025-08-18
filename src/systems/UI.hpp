@@ -12,10 +12,12 @@
 #include <vector>
 
 #include "../components/Components.hpp"
+#include "../core/Color.hpp"
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
 #include "Camera.hpp"
 #include "Interaction.hpp"
+#include "Physics.hpp"
 
 namespace nbody {
 
@@ -56,11 +58,11 @@ namespace nbody {
                                nbody::constants::softeningMax, "%.3f");
             ImGui::SliderFloat("Velocity Cap", &cfg->maxSpeed, nbody::constants::velocityCapMin,
                                nbody::constants::velocityCapMax, "%.1f");
-            if (ImGui::Button("Zero Net Momentum")) zero_net_momentum(w);
+            if (ImGui::Button("Zero Net Momentum")) Physics::zero_net_momentum(w);
             ImGui::SameLine();
             if (ImGui::Button("Reset Scenario")) {
-                reset_scenario(w);
-                zero_net_momentum(w);
+                Physics::reset_scenario(w);
+                Physics::zero_net_momentum(w);
                 Interaction::Select(w, flecs::entity::null());
                 cfg->paused = false;
             }
@@ -206,8 +208,8 @@ namespace nbody {
                 Interaction::Select(w, pendingSelection);
             }
 
-            Diagnostics d{};
-            const bool okDiag = compute_diagnostics(
+            Physics::Diagnostics d{};
+            const bool okDiag = Physics::compute_diagnostics(
                 w, cfg->G, static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening), d);
             ImGui::SetNextWindowPos(ImVec2(400, 390), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
@@ -227,114 +229,6 @@ namespace nbody {
                 cfg->paused = old;
             }
         }
-
-    private:
-        struct Diagnostics {
-            double kinetic = 0.0;
-            double potential = 0.0;
-            double energy = 0.0;
-            raylib::Vector2 momentum{0, 0};
-            raylib::Vector2 com{0, 0};
-            double totalMass = 0.0;
-        };
-
-        static raylib::Color RandomNiceColor() {
-            return {static_cast<unsigned char>(
-                        GetRandomValue(nbody::constants::randomColorMin, nbody::constants::randomColorMax)),
-                    static_cast<unsigned char>(
-                        GetRandomValue(nbody::constants::randomColorMin, nbody::constants::randomColorMax)),
-                    static_cast<unsigned char>(
-                        GetRandomValue(nbody::constants::randomColorMin, nbody::constants::randomColorMax)),
-                    255};
-        }
-
-        static void zero_net_momentum(const flecs::world& w) {
-            double Px = 0.0, Py = 0.0, M = 0.0;
-            w.each([&](const Mass& m, const Velocity& v) {
-                Px += static_cast<double>(m.value) * static_cast<double>(v.value.x);
-                Py += static_cast<double>(m.value) * static_cast<double>(v.value.y);
-                M += static_cast<double>(m.value);
-            });
-            if (M <= 0.0) return;
-            const raylib::Vector2 v0 = {static_cast<float>(Px / M), static_cast<float>(Py / M)};
-            w.each([&](const Pinned& pin, Velocity& v) {
-                if (!pin.value) v.value -= v0;
-            });
-        }
-
-        static void reset_scenario(const flecs::world& w) {
-            std::vector<flecs::entity> to_del;
-            w.each([&](const flecs::entity e, Position&) { to_del.push_back(e); });
-            for (auto& e : to_del) e.destruct();
-            auto mk = [&](const raylib::Vector2 pos, const raylib::Vector2 vel, const float mass,
-                          const raylib::Color col, const bool pinned) {
-                w.entity()
-                    .set<Position>({pos})
-                    .set<Velocity>({vel})
-                    .set<Acceleration>({raylib::Vector2{0, 0}})
-                    .set<PrevAcceleration>({raylib::Vector2{0, 0}})
-                    .set<Mass>({mass})
-                    .set<Pinned>({pinned})
-                    .set<Tint>({col})
-                    .set<Trail>({{}})
-                    .add<Selectable>()
-                    .set<Draggable>({true, nbody::constants::dragVelScale});
-            };
-            mk({nbody::constants::seedCenterX, nbody::constants::seedCenterY}, {0.0f, 0.0f},
-               nbody::constants::seedCentralMass, RED, false);
-            mk({nbody::constants::seedCenterX + nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-               {0.0f, nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, BLUE, false);
-            mk({nbody::constants::seedCenterX - nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-               {0.0f, -nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, GREEN, false);
-        }
-
-        static bool compute_diagnostics(const flecs::world& w, const double G, const double eps2, Diagnostics& out) {
-            std::vector<std::tuple<raylib::Vector2, raylib::Vector2, float>> data;
-            data.reserve(1024);
-            w.each([&](const Position& p, const Velocity& v, const Mass& m) {
-                data.emplace_back(p.value, v.value, m.value);
-            });
-            const size_t n = data.size();
-            out = Diagnostics{};
-            if (n == 0) return true;
-
-            double KE = 0.0, M = 0.0, Px = 0.0, Py = 0.0, Cx = 0.0, Cy = 0.0;
-            for (size_t i = 0; i < n; ++i) {
-                auto [p, v, m] = data[i];
-                KE += 0.5 * static_cast<double>(m) *
-                    (static_cast<double>(v.x) * static_cast<double>(v.x) +
-                     static_cast<double>(v.y) * static_cast<double>(v.y));
-                Px += static_cast<double>(m) * static_cast<double>(v.x);
-                Py += static_cast<double>(m) * static_cast<double>(v.y);
-                Cx += static_cast<double>(m) * static_cast<double>(p.x);
-                Cy += static_cast<double>(m) * static_cast<double>(p.y);
-                M += static_cast<double>(m);
-            }
-            double PE = 0.0;
-            for (size_t i = 0; i < n; ++i) {
-                for (size_t j = i + 1; j < n; ++j) {
-                    const double dx =
-                        static_cast<double>(std::get<0>(data[j]).x) - static_cast<double>(std::get<0>(data[i]).x);
-                    const double dy =
-                        static_cast<double>(std::get<0>(data[j]).y) - static_cast<double>(std::get<0>(data[i]).y);
-                    const double r2 = dx * dx + dy * dy + eps2;
-                    const double r = std::sqrt(r2);
-                    PE +=
-                        -G * static_cast<double>(std::get<2>(data[i])) * static_cast<double>(std::get<2>(data[j])) / r;
-                }
-            }
-
-            out.kinetic = KE;
-            out.potential = PE;
-            out.energy = KE + PE;
-            out.momentum = raylib::Vector2{static_cast<float>(Px), static_cast<float>(Py)};
-            out.totalMass = M;
-            out.com = (M > 0.0) ? raylib::Vector2{static_cast<float>(Cx / M), static_cast<float>(Cy / M)}
-                                : raylib::Vector2{0, 0};
-            return true;
-        }
-
-        // No extra bridge helpers needed when including Interaction.hpp
     };
 
 }  // namespace nbody
