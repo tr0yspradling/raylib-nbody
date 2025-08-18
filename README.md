@@ -1,6 +1,6 @@
 # N-Body Gravity Simulation
 
-Real-time, interactive N-body gravity simulation built with raylib and ImGui.
+Real-time, interactive N-body gravity simulation built with raylib, flecs, and ImGui.
 
 ## Features
 
@@ -20,32 +20,20 @@ Real-time, interactive N-body gravity simulation built with raylib and ImGui.
 
 ## Building
 
-Requires raylib installed on your system.
+Requires the raylib development package installed on your system. Other dependencies are
+vendored as Git submodules.
 
 ```bash
-cmake --build cmake-build-debug
-./cmake-build-debug/raylib_nbody
+git submodule update --init --recursive
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+./build/raylib_nbody
 ```
 
 ## Dependencies
 
 - raylib (graphics and windowing)
-- ImGui (UI framework, fetched automatically)
-- rlImGui (raylib-ImGui integration, fetched automatically)
-
-## TODO
-
-High Priority (Correctness/Maintainability):
-1. Remove dead code (Selection, CameraState, unused components)
-2. Consolidate duplicate constants into shared header
-3. Add proper null checks and error handling
-
-Medium Priority (Code Quality):
-1. Extract constants for magic numbers
-2. Break down large methods (draw_ui, ProcessMouseInput)
-3. Move static functions into appropriate classes/namespaces
-
-Low Priority (Performance):
-1. Optimize data access patterns in physics
-2. Consider object pooling for frequent allocations
-3. Add spatial partitioning for large N-body simulations
+- raylib-cpp (C++ wrapper for raylib)
+- ImGui (UI framework)
+- rlImGui (raylib-ImGui bridge)
+- flecs (entity-component system)
