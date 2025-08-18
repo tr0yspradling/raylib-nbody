@@ -10,6 +10,8 @@ struct Config {
     double G = 6.67430e-3;
     float softening = 4.0f;  // epsilon
     float maxSpeed = 0.0f;  // 0 = uncapped
+    int bhThreshold = 100;  // use Barnes-Hut when entity count exceeds this
+    float bhTheta = 0.5f;  // opening angle criterion
 
     // Time & integrator
     bool paused = false;

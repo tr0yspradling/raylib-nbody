@@ -8,6 +8,7 @@
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
+#include "../physics/SpatialPartition.hpp"
 
 namespace nbody {
 
@@ -65,28 +66,47 @@ namespace nbody {
 
             const size_t n = rows.size();
             if (n == 0) return;
+
             std::vector acc(n, raylib::Vector2{0, 0});
 
-            for (size_t i = 0; i < n; ++i) {
-                for (size_t j = i + 1; j < n; ++j) {
-                    const double dx = static_cast<double>(rows[j].p->value.x) - static_cast<double>(rows[i].p->value.x);
-                    const double dy = static_cast<double>(rows[j].p->value.y) - static_cast<double>(rows[i].p->value.y);
-                    const double r2 = dx * dx + dy * dy + eps2;
-                    const double invR = 1.0 / std::sqrt(r2);
-                    const double invR3 = invR * invR * invR;
+            if (n > static_cast<size_t>(cfg.bhThreshold)) {
+                std::vector<SpatialPartition::Body> bodies;
+                bodies.reserve(n);
+                for (size_t i = 0; i < n; ++i)
+                    bodies.push_back({rows[i].p->value, rows[i].m->value, static_cast<int>(i)});
 
-                    const double ax_i = G * static_cast<double>(rows[j].m->value) * dx * invR3;
-                    const double ay_i = G * static_cast<double>(rows[j].m->value) * dy * invR3;
-                    const double ax_j = -G * static_cast<double>(rows[i].m->value) * dx * invR3;
-                    const double ay_j = -G * static_cast<double>(rows[i].m->value) * dy * invR3;
+                SpatialPartition tree;
+                tree.Build(bodies);
+                const double theta = static_cast<double>(cfg.bhTheta);
 
-                    if (!rows[i].pin->value) {
-                        acc[i].x += static_cast<float>(ax_i);
-                        acc[i].y += static_cast<float>(ay_i);
-                    }
-                    if (!rows[j].pin->value) {
-                        acc[j].x += static_cast<float>(ax_j);
-                        acc[j].y += static_cast<float>(ay_j);
+                for (size_t i = 0; i < n; ++i) {
+                    if (rows[i].pin->value) continue;
+                    tree.ComputeForce(bodies[i], theta, G, eps2, acc[i]);
+                }
+            } else {
+                for (size_t i = 0; i < n; ++i) {
+                    for (size_t j = i + 1; j < n; ++j) {
+                        const double dx =
+                            static_cast<double>(rows[j].p->value.x) - static_cast<double>(rows[i].p->value.x);
+                        const double dy =
+                            static_cast<double>(rows[j].p->value.y) - static_cast<double>(rows[i].p->value.y);
+                        const double r2 = dx * dx + dy * dy + eps2;
+                        const double invR = 1.0 / std::sqrt(r2);
+                        const double invR3 = invR * invR * invR;
+
+                        const double ax_i = G * static_cast<double>(rows[j].m->value) * dx * invR3;
+                        const double ay_i = G * static_cast<double>(rows[j].m->value) * dy * invR3;
+                        const double ax_j = -G * static_cast<double>(rows[i].m->value) * dx * invR3;
+                        const double ay_j = -G * static_cast<double>(rows[i].m->value) * dy * invR3;
+
+                        if (!rows[i].pin->value) {
+                            acc[i].x += static_cast<float>(ax_i);
+                            acc[i].y += static_cast<float>(ay_i);
+                        }
+                        if (!rows[j].pin->value) {
+                            acc[j].x += static_cast<float>(ax_j);
+                            acc[j].y += static_cast<float>(ay_j);
+                        }
                     }
                 }
             }
