@@ -35,7 +35,7 @@ namespace nbody {
         }
 
     private:
-        static inline bool is_finite(const float v) { return std::isfinite(static_cast<double>(v)); }
+        static inline bool is_finite(const double v) { return std::isfinite(v); }
 
         static void compute_gravity(const flecs::world& w) {
             const Config& cfg = *w.get<Config>();
