@@ -15,8 +15,8 @@
 #include "systems/Camera.hpp"
 #include "systems/Interaction.hpp"
 #include "systems/Physics.hpp"
-#include "systems/Render.hpp"
 #include "systems/UI.hpp"
+#include "systems/WorldRenderer.hpp"
 
 namespace scenario {
     void CreateInitialBodies(const flecs::world& world) {
@@ -145,7 +145,7 @@ private:
         // Get configuration for rendering
         if (const auto* cfg = world_.get<Config>()) {
             // Render the physics scene
-            nbody::Renderer::RenderScene(world_, *cfg, *camera);
+            nbody::systems::WorldRenderer::RenderScene(world_, *cfg, *camera);
         }
 
         // Render interaction overlays (selection rings, drag visuals)

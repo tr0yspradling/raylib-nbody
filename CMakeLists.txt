@@ -127,7 +127,7 @@ add_executable(raylib_nbody
     src/core/Config.hpp
     src/components/Components.hpp
     src/systems/Physics.hpp
-    src/systems/Render.hpp
+    src/systems/WorldRenderer.hpp
     src/systems/UI.hpp
     src/systems/Camera.hpp
     src/systems/Interaction.hpp

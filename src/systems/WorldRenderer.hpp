@@ -10,9 +10,9 @@
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
 
-namespace nbody {
+namespace nbody::systems {
 
-    class Renderer {
+    class WorldRenderer {
     public:
         static void RenderScene(const flecs::world& w, const Config& cfg, raylib::Camera2D& cam) {
             cam.BeginMode();
@@ -78,4 +78,4 @@ namespace nbody {
         }
     };
 
-}  // namespace nbody
+}  // namespace nbody::systems
