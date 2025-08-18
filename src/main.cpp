@@ -183,7 +183,7 @@ auto main() -> int {
         app.Run();
         return 0;
     } catch (const std::exception& e) {
-        // Log error if needed
+        TraceLog(LOG_ERROR, "Exception: %s", e.what());
         return 1;
     }
 }
