@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <flecs.h>
 #include <raylib-cpp.hpp>
 #include <raymath.h>
@@ -45,26 +46,26 @@ namespace nbody {
             const double G = cfg.G;
             const double eps2 = static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening);
 
-            struct Row {
-                flecs::entity e;
-                Position* p;
-                Velocity* v;
-                Mass* m;
-                Pinned* pin;
-                Acceleration* a;
-            };
-            std::vector<Row> rows;
-            rows.reserve(1000);
-            w.each([&](const flecs::entity e, Position& p, Velocity& v, Mass& m, Pinned& pin, Acceleration& a) {
-                rows.push_back(Row{e, &p, &v, &m, &pin, &a});
+            std::vector<raylib::Vector2> positions;
+            std::vector<float> masses;
+            std::vector<uint8_t> pins;
+            std::vector<Acceleration*> accPtrs;
+            positions.reserve(1000);
+            masses.reserve(1000);
+            pins.reserve(1000);
+            accPtrs.reserve(1000);
+
+            w.each([&](Position& p, Velocity& v, Mass& m, Pinned& pin, Acceleration& a) {
+                if (is_finite(p.value.x) && is_finite(p.value.y) && is_finite(v.value.x) && is_finite(v.value.y) &&
+                    m.value > 0.0f && is_finite(m.value)) {
+                    positions.push_back(p.value);
+                    masses.push_back(m.value);
+                    pins.push_back(pin.value ? 1 : 0);
+                    accPtrs.push_back(&a);
+                }
             });
 
-            std::erase_if(rows, [](const Row& r) {
-                return !(is_finite(r.p->value.x) && is_finite(r.p->value.y) && is_finite(r.v->value.x) &&
-                         is_finite(r.v->value.y) && r.m->value > 0.0f && is_finite(r.m->value));
-            });
-
-            const size_t n = rows.size();
+            const size_t n = positions.size();
             if (n == 0) return;
 
             std::vector acc(n, raylib::Vector2{0, 0});
@@ -72,38 +73,38 @@ namespace nbody {
             if (n > static_cast<size_t>(cfg.bhThreshold)) {
                 std::vector<SpatialPartition::Body> bodies;
                 bodies.reserve(n);
-                for (size_t i = 0; i < n; ++i)
-                    bodies.push_back({rows[i].p->value, rows[i].m->value, static_cast<int>(i)});
+                for (size_t i = 0; i < n; ++i) bodies.push_back({positions[i], masses[i], static_cast<int>(i)});
 
                 SpatialPartition tree;
                 tree.Build(bodies);
                 const double theta = static_cast<double>(cfg.bhTheta);
 
                 for (size_t i = 0; i < n; ++i) {
-                    if (rows[i].pin->value) continue;
+                    if (pins[i]) continue;
                     tree.ComputeForce(bodies[i], theta, G, eps2, acc[i]);
                 }
             } else {
+                const raylib::Vector2* pos = positions.data();
+                const float* mass = masses.data();
+                const uint8_t* pin = pins.data();
                 for (size_t i = 0; i < n; ++i) {
                     for (size_t j = i + 1; j < n; ++j) {
-                        const double dx =
-                            static_cast<double>(rows[j].p->value.x) - static_cast<double>(rows[i].p->value.x);
-                        const double dy =
-                            static_cast<double>(rows[j].p->value.y) - static_cast<double>(rows[i].p->value.y);
+                        const double dx = static_cast<double>(pos[j].x) - static_cast<double>(pos[i].x);
+                        const double dy = static_cast<double>(pos[j].y) - static_cast<double>(pos[i].y);
                         const double r2 = dx * dx + dy * dy + eps2;
                         const double invR = 1.0 / std::sqrt(r2);
                         const double invR3 = invR * invR * invR;
 
-                        const double ax_i = G * static_cast<double>(rows[j].m->value) * dx * invR3;
-                        const double ay_i = G * static_cast<double>(rows[j].m->value) * dy * invR3;
-                        const double ax_j = -G * static_cast<double>(rows[i].m->value) * dx * invR3;
-                        const double ay_j = -G * static_cast<double>(rows[i].m->value) * dy * invR3;
+                        const double ax_i = G * static_cast<double>(mass[j]) * dx * invR3;
+                        const double ay_i = G * static_cast<double>(mass[j]) * dy * invR3;
+                        const double ax_j = -G * static_cast<double>(mass[i]) * dx * invR3;
+                        const double ay_j = -G * static_cast<double>(mass[i]) * dy * invR3;
 
-                        if (!rows[i].pin->value) {
+                        if (!pin[i]) {
                             acc[i].x += static_cast<float>(ax_i);
                             acc[i].y += static_cast<float>(ay_i);
                         }
-                        if (!rows[j].pin->value) {
+                        if (!pin[j]) {
                             acc[j].x += static_cast<float>(ax_j);
                             acc[j].y += static_cast<float>(ay_j);
                         }
@@ -111,7 +112,7 @@ namespace nbody {
                 }
             }
 
-            for (size_t i = 0; i < n; ++i) rows[i].e.get_mut<Acceleration>()->value = acc[i];
+            for (size_t i = 0; i < n; ++i) accPtrs[i]->value = acc[i];
         }
 
         static void integrate(const flecs::world& w, const float dt) {
