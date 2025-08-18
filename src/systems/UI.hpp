@@ -27,33 +27,68 @@ namespace nbody {
         static void Draw(const flecs::world& w, raylib::Camera2D& cam) {
             auto* cfg = w.get_mut<Config>();
             bool requestStep = false;
+            static float dragVelScale = nbody::constants::dragVelScale;
+            flecs::entity pendingSelection = flecs::entity::null();
 
+            DrawTimeIntegratorPanel(*cfg, requestStep);
+            DrawPhysicsPanel(w, *cfg);
+            DrawVisualsPanel(*cfg);
+            DrawAddEditPanel(w, cam, dragVelScale);
+            DrawBodiesPanel(w, dragVelScale, pendingSelection);
+            DrawDiagnosticsPanel(w, *cfg);
+
+            if (pendingSelection.is_alive() ||
+                (!Interaction::GetSelected(w).is_alive() && pendingSelection == flecs::entity::null())) {
+                Interaction::Select(w, pendingSelection);
+            }
+
+            if (requestStep) {
+                const bool old = cfg->paused;
+                cfg->paused = false;
+                w.progress(cfg->fixedDt);
+                cfg->paused = old;
+            }
+        }
+
+    private:
+        struct Diagnostics {
+            double kinetic = 0.0;
+            double potential = 0.0;
+            double energy = 0.0;
+            raylib::Vector2 momentum{0, 0};
+            raylib::Vector2 com{0, 0};
+            double totalMass = 0.0;
+        };
+
+        static void DrawTimeIntegratorPanel(Config& cfg, bool& requestStep) {
             ImGui::SetNextWindowPos(ImVec2(12, 12), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_FirstUseEver);
             ImGui::Begin("Time & Integrator");
-            ImGui::Checkbox("Paused", &cfg->paused);
+            ImGui::Checkbox("Paused", &cfg.paused);
             ImGui::SameLine();
             if (ImGui::Button("Step")) requestStep = true;
-            ImGui::Checkbox("Use Fixed dt", &cfg->useFixedDt);
-            ImGui::SliderFloat("Fixed dt", &cfg->fixedDt, nbody::constants::fixedDtMin, nbody::constants::fixedDtMax,
+            ImGui::Checkbox("Use Fixed dt", &cfg.useFixedDt);
+            ImGui::SliderFloat("Fixed dt", &cfg.fixedDt, nbody::constants::fixedDtMin, nbody::constants::fixedDtMax,
                                "%.6f");
-            ImGui::SliderFloat("Time Scale", &cfg->timeScale, nbody::constants::timeScaleMin,
+            ImGui::SliderFloat("Time Scale", &cfg.timeScale, nbody::constants::timeScaleMin,
                                nbody::constants::timeScaleMax, "%.3f");
-            ImGui::RadioButton("Semi-Implicit Euler", &cfg->integrator, 0);
+            ImGui::RadioButton("Semi-Implicit Euler", &cfg.integrator, 0);
             ImGui::SameLine();
-            ImGui::RadioButton("Velocity Verlet", &cfg->integrator, 1);
-            ImGui::Text("Last step: %.3f ms", cfg->lastStepMs);
+            ImGui::RadioButton("Velocity Verlet", &cfg.integrator, 1);
+            ImGui::Text("Last step: %.3f ms", cfg.lastStepMs);
             ImGui::End();
+        }
 
+        static void DrawPhysicsPanel(const flecs::world& w, Config& cfg) {
             ImGui::SetNextWindowPos(ImVec2(12, 140), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_FirstUseEver);
             ImGui::Begin("Physics");
-            auto Gf = static_cast<float>(cfg->G);
+            auto Gf = static_cast<float>(cfg.G);
             ImGui::SliderFloat("G", &Gf, nbody::constants::gMin, nbody::constants::gMax, "%.6f");
-            cfg->G = Gf;
-            ImGui::SliderFloat("Softening (epsilon)", &cfg->softening, nbody::constants::softeningMin,
+            cfg.G = Gf;
+            ImGui::SliderFloat("Softening (epsilon)", &cfg.softening, nbody::constants::softeningMin,
                                nbody::constants::softeningMax, "%.3f");
-            ImGui::SliderFloat("Velocity Cap", &cfg->maxSpeed, nbody::constants::velocityCapMin,
+            ImGui::SliderFloat("Velocity Cap", &cfg.maxSpeed, nbody::constants::velocityCapMin,
                                nbody::constants::velocityCapMax, "%.1f");
             if (ImGui::Button("Zero Net Momentum")) zero_net_momentum(w);
             ImGui::SameLine();
@@ -61,25 +96,28 @@ namespace nbody {
                 reset_scenario(w);
                 zero_net_momentum(w);
                 Interaction::Select(w, flecs::entity::null());
-                cfg->paused = false;
+                cfg.paused = false;
             }
             ImGui::End();
+        }
 
+        static void DrawVisualsPanel(Config& cfg) {
             ImGui::SetNextWindowPos(ImVec2(12, 280), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_FirstUseEver);
             ImGui::Begin("Visuals");
-            ImGui::Checkbox("Trails", &cfg->drawTrails);
+            ImGui::Checkbox("Trails", &cfg.drawTrails);
             ImGui::SameLine();
-            ImGui::Checkbox("Velocity Vectors", &cfg->drawVelocity);
+            ImGui::Checkbox("Velocity Vectors", &cfg.drawVelocity);
             ImGui::SameLine();
-            ImGui::Checkbox("Acceleration Vectors", &cfg->drawAcceleration);
-            ImGui::SliderInt("Trail Length", &cfg->trailMax, 0, nbody::constants::trailLengthMax);
+            ImGui::Checkbox("Acceleration Vectors", &cfg.drawAcceleration);
+            ImGui::SliderInt("Trail Length", &cfg.trailMax, 0, nbody::constants::trailLengthMax);
             ImGui::End();
+        }
 
+        static void DrawAddEditPanel(const flecs::world& w, raylib::Camera2D& cam, float& dragVelScale) {
             static float spawnMass = nbody::constants::seedSmallMass;
             static raylib::Vector2 spawnVel{0, 0};
             static bool spawnPinned = false;
-            static float dragVelScale = nbody::constants::dragVelScale;
             ImGui::SetNextWindowPos(ImVec2(12, 420), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
             ImGui::Begin("Add / Edit");
@@ -129,16 +167,16 @@ namespace nbody {
                 }
             }
             ImGui::End();
+        }
 
+        static void DrawBodiesPanel(const flecs::world& w, float dragVelScale, flecs::entity& pendingSelection) {
             ImGui::SetNextWindowPos(ImVec2(400, 12), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(380, 360), ImGuiCond_FirstUseEver);
             ImGui::Begin("Bodies");
-            flecs::entity pendingSelection = flecs::entity::null();
+            pendingSelection = flecs::entity::null();
 
-            // Create a scrolling list with a fixed-height footer for action buttons.
             const float footer_h = ImGui::GetFrameHeightWithSpacing();
             if (ImGui::BeginChild("##BodyList", ImVec2(0, -footer_h), true)) {
-                // Build stable-ordered list to avoid reordering issues
                 std::vector<flecs::entity> entities;
                 w.each([&](const flecs::entity e, const Position&, const Mass&, const Tint&, const Selectable&) {
                     entities.push_back(e);
@@ -168,7 +206,6 @@ namespace nbody {
             }
             ImGui::EndChild();
 
-            // Footer actions (always visible at bottom)
             if (ImGui::Button("Duplicate Selected")) {
                 if (flecs::entity selected = Interaction::GetSelected(w); selected.is_alive()) {
                     const auto e = selected;
@@ -199,15 +236,12 @@ namespace nbody {
                 nbody::Camera::CenterOnCenterOfMass(w);
             }
             ImGui::End();
+        }
 
-            if (pendingSelection.is_alive() ||
-                (!Interaction::GetSelected(w).is_alive() && pendingSelection == flecs::entity::null())) {
-                Interaction::Select(w, pendingSelection);
-            }
-
+        static void DrawDiagnosticsPanel(const flecs::world& w, const Config& cfg) {
             Diagnostics d{};
             const bool okDiag = compute_diagnostics(
-                w, cfg->G, static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening), d);
+                w, cfg.G, static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening), d);
             ImGui::SetNextWindowPos(ImVec2(400, 390), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
             ImGui::Begin("Diagnostics");
@@ -218,24 +252,7 @@ namespace nbody {
             ImGui::Text("COM: (%.3f, %.3f)  Mass: %.3f", d.com.x, (d.totalMass > 0.0) ? d.com.y : 0.0f, d.totalMass);
             if (!okDiag) ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Non-finite detected; auto-paused.");
             ImGui::End();
-
-            if (requestStep) {
-                const bool old = cfg->paused;
-                cfg->paused = false;
-                w.progress(cfg->fixedDt);
-                cfg->paused = old;
-            }
         }
-
-    private:
-        struct Diagnostics {
-            double kinetic = 0.0;
-            double potential = 0.0;
-            double energy = 0.0;
-            raylib::Vector2 momentum{0, 0};
-            raylib::Vector2 com{0, 0};
-            double totalMass = 0.0;
-        };
 
         static raylib::Color RandomNiceColor() {
             return {static_cast<unsigned char>(
