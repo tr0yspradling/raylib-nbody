@@ -64,6 +64,7 @@ public:
     }
 
     static void ResetScenario(const flecs::world& w) {
+        const Config& cfg = *w.get<Config>();
         std::vector<flecs::entity> toDel;
         w.each([&](const flecs::entity e, Position&) { toDel.push_back(e); });
         for (auto& e : toDel) e.destruct();
@@ -82,10 +83,12 @@ public:
                 .set<Draggable>({true, constants::dragVelScale});
         };
         mk({constants::seedCenterX, constants::seedCenterY}, {0.0f, 0.0f}, constants::seedCentralMass, RED, false);
-        mk({constants::seedCenterX + constants::seedOffsetX, constants::seedCenterY}, {0.0f, constants::seedSpeed},
-           constants::seedSmallMass, BLUE, false);
-        mk({constants::seedCenterX - constants::seedOffsetX, constants::seedCenterY}, {0.0f, -constants::seedSpeed},
-           constants::seedSmallMass, GREEN, false);
+        const float radius = constants::seedOffsetX;
+        const float v = std::sqrt(static_cast<float>(cfg.G) * constants::seedCentralMass / radius);
+        mk({constants::seedCenterX + radius, constants::seedCenterY}, {0.0f, v}, constants::seedSmallMass, BLUE, false);
+        mk({constants::seedCenterX - radius, constants::seedCenterY}, {0.0f, -v}, constants::seedSmallMass, GREEN,
+           false);
+        ZeroNetMomentum(w);
     }
 
     static bool ComputeDiagnostics(const flecs::world& w, const double G, const double eps2, Diagnostics& out) {
