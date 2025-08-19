@@ -11,6 +11,7 @@
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
+#include "Interaction.hpp"
 
 namespace nbody::systems {
 
@@ -58,10 +59,15 @@ public:
             const float r = std::max(minRadiusWorld, static_cast<float>(rMeters));
             DrawCircleV(p->value, r, tint->value);
             if (cfg.drawVelocity) {
-                float velScale = nbody::constants::velVectorScale / cam.zoom;
-                if (const auto* drag = e.get<Draggable>()) velScale = 1.0f / drag->dragScale;
-                const raylib::Vector2 tip = p->value + v->value * velScale;
-                DrawLineEx(p->value, tip, nbody::constants::velLineWidth / cam.zoom, WHITE);
+                const auto* s = w.get<nbody::Interaction::State>();
+                const bool skipSelected =
+                    s && s->isDraggingVelocity && s->selectedEntity.is_alive() && s->selectedEntity.id() == e.id();
+                if (!skipSelected) {
+                    float velScale = nbody::constants::velVectorScale / cam.zoom;
+                    if (const auto* drag = e.get<Draggable>()) velScale = 1.0f / drag->dragScale;
+                    const raylib::Vector2 tip = p->value + v->value * velScale;
+                    DrawLineEx(p->value, tip, nbody::constants::velLineWidth / cam.zoom, WHITE);
+                }
             }
             if (cfg.drawAcceleration) {
                 const float accScale = nbody::constants::accVectorScale / cam.zoom;

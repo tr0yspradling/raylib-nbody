@@ -189,9 +189,10 @@ private:
         auto* cfg = world.get_mut<Config>();
         if (!state || !cfg || !state->selectedEntity.is_alive()) return;
         const auto* draggable = state->selectedEntity.get<Draggable>();
-        if (!draggable || !draggable->canDragVelocity) return;
+        const auto* position = state->selectedEntity.get<Position>();
+        if (!draggable || !draggable->canDragVelocity || !position) return;
         state->isDraggingVelocity = true;
-        state->dragStartWorld = worldPos;
+        state->dragStartWorld = position->value;
         state->currentDragWorld = worldPos;
         cfg->paused = true;
     }
