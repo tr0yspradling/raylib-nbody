@@ -131,6 +131,8 @@ add_executable(raylib_nbody
     src/systems/UI.hpp
     src/systems/Camera.hpp
     src/systems/Interaction.hpp
+    src/systems/Collision.hpp
+    src/core/Scenario.hpp
 )
 
 target_include_directories(raylib_nbody

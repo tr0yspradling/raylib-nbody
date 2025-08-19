@@ -67,7 +67,11 @@ Single source of truth for OpenAI agents and Claude Code. Link or symlink `CLAUD
 
 - Format with `.clang-format` (LLVM base, 4 spaces, 120 columns).
 - Run: `clang-format -i src/*.cpp src/*.h*`
-- Naming: Types `PascalCase`, functions `CamelCase`, variables `lowerCamelCase`.
+- Naming:
+  - Types and ECS components: `PascalCase` (e.g., `Position`, `WorldRenderer`).
+  - Functions: `CamelCase` (e.g., `Register`, `CenterOnCenterOfMass`).
+  - General variables: `lowerCamelCase`.
+  - Constants and Config fields: `snake_case` (e.g., `default_time_scale`, `radius_scale`, `min_body_radius`).
 - Keep physics, UI, and rendering concerns in separate files.
 
 ---

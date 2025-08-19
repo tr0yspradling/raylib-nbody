@@ -4,22 +4,28 @@
 #include <vector>
 
 #include "../core/Constants.hpp"
+#include "../core/Math.hpp"
 
 // Basic physics/render components
 struct Position {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Velocity {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Acceleration {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct PrevAcceleration {
-    raylib::Vector2 value;
+    DVec2 value;
 };
 struct Mass {
     float value;
+};
+// Optional physical radius (meters). If absent, systems may derive
+// radius from mass and material density.
+struct Radius {
+    double value;
 };
 struct Pinned {
     bool value;
@@ -43,8 +49,8 @@ struct Selected {
 };
 
 struct Draggable {
-    bool canDragVelocity = true;
-    float dragScale = nbody::constants::dragVelScale;
+    bool can_drag_velocity = true;
+    float drag_scale = nbody::constants::drag_vel_scale;
 };
 
 // (removed) MouseInteraction: legacy input state no longer used

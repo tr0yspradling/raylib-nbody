@@ -1,15 +1,14 @@
 # N-Body Gravity Simulation
+![Screenshot](screenshot.png)
 
 Real-time, interactive N-body gravity simulation built with raylib, flecs, and ImGui.
-
 ## Features
-
 - **Real-time Physics**: Two integration methods (Semi-Implicit Euler, Velocity Verlet)
 - **Interactive Controls**: Pan, zoom, select bodies, drag to set velocities
 - **Visual Elements**: Particle trails, velocity/acceleration vectors, grid overlay
 - **Live Diagnostics**: Energy conservation monitoring, momentum tracking
 - **Body Management**: Add, remove, edit masses and velocities via UI
-- **Scenarios**: Built-in three-body system with momentum zeroing
+- **Scenarios**: Save/load scenarios (bodies + config) with name/description/tags; built-in three-body seed with momentum zeroing
 
 ## Controls
 
@@ -17,6 +16,7 @@ Real-time, interactive N-body gravity simulation built with raylib, flecs, and I
 - **Left Click + Drag**: Pan viewport (empty space) or select body (on particle)
 - **Right Click + Drag**: Set velocity for selected body
 - **UI Panels**: Complete control over simulation parameters
+ - Shortcuts: `V` reset view, `C` center to COM, `S` reset scenario, `R` reset all (confirm), `Z` zero net momentum
 
 ## Building
 
