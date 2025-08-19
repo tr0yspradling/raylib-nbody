@@ -211,7 +211,11 @@ private:
     }
 
     static void EndVelocityDrag(const flecs::world& world) {
-        if (auto* state = world.get_mut<State>()) state->isDraggingVelocity = false;
+        if (auto* state = world.get_mut<State>()) {
+            state->isDraggingVelocity = false;
+            state->dragStartWorld = raylib::Vector2{0.0f, 0.0f};
+            state->currentDragWorld = raylib::Vector2{0.0f, 0.0f};
+        }
     }
 };
 
