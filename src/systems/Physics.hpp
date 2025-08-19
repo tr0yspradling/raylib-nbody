@@ -104,6 +104,8 @@ public:
         out = Diagnostics{};
         if (n == 0) return true;
 
+        auto* cfg = w.get_mut<Config>();
+
         double KE = 0.0, M = 0.0, Px = 0.0, Py = 0.0, Cx = 0.0, Cy = 0.0;
         for (size_t i = 0; i < n; ++i) {
             auto [p, v, m] = data[i];
@@ -115,6 +117,11 @@ public:
             Cx += static_cast<double>(m) * static_cast<double>(p.x);
             Cy += static_cast<double>(m) * static_cast<double>(p.y);
             M += static_cast<double>(m);
+            if (!(std::isfinite(KE) && std::isfinite(Px) && std::isfinite(Py) && std::isfinite(Cx) &&
+                  std::isfinite(Cy) && std::isfinite(M))) {
+                if (cfg) cfg->paused = true;
+                return false;
+            }
         }
         double PE = 0.0;
         for (size_t i = 0; i < n; ++i) {
@@ -126,6 +133,10 @@ public:
                 const double r2 = dx * dx + dy * dy + eps2;
                 const double r = std::sqrt(r2);
                 PE += -G * static_cast<double>(std::get<2>(data[i])) * static_cast<double>(std::get<2>(data[j])) / r;
+                if (!std::isfinite(PE)) {
+                    if (cfg) cfg->paused = true;
+                    return false;
+                }
             }
         }
 
@@ -136,6 +147,14 @@ public:
         out.totalMass = M;
         out.com =
             (M > 0.0) ? raylib::Vector2{static_cast<float>(Cx / M), static_cast<float>(Cy / M)} : raylib::Vector2{0, 0};
+
+        const bool ok = std::isfinite(out.kinetic) && std::isfinite(out.potential) && std::isfinite(out.energy) &&
+            is_finite(out.momentum.x) && is_finite(out.momentum.y) && std::isfinite(out.totalMass) &&
+            is_finite(out.com.x) && is_finite(out.com.y);
+        if (!ok) {
+            if (cfg) cfg->paused = true;
+            return false;
+        }
         return true;
     }
 
