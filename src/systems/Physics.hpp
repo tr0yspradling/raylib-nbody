@@ -51,7 +51,11 @@ public:
 
     static void ZeroNetMomentum(const flecs::world& w) {
         double Px = 0.0, Py = 0.0, M = 0.0;
-        w.each([&](const Mass& m, const Velocity& v) {
+        w.each([&](const Mass& m, Velocity& v, const Pinned& pin) {
+            if (pin.value) {
+                v.value = raylib::Vector2{0, 0};
+                return;
+            }
             Px += static_cast<double>(m.value) * static_cast<double>(v.value.x);
             Py += static_cast<double>(m.value) * static_cast<double>(v.value.y);
             M += static_cast<double>(m.value);
