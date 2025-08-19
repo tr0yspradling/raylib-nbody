@@ -1,7 +1,7 @@
 # N-Body Gravity Simulation
 ![Screenshot](screenshot.png)
 
-Real-time, interactive N-body gravity simulation built with raylib, flecs, and ImGui.
+Real-time, interactive N-body gravity simulation built with raylib, flecs, and ImGui. (See [warning](#disclaimer--warning))
 ## Features
 - **Real-time Physics**: Two integration methods (Semi-Implicit Euler, Velocity Verlet)
 - **Interactive Controls**: Pan, zoom, select bodies, drag to set velocities
@@ -37,3 +37,7 @@ cmake --build build -j
 - ImGui (UI framework)
 - rlImGui (raylib-ImGui bridge)
 - flecs (entity-component system)
+
+## Disclaimer & Warning
+
+This project is an AI-generated experiment. It currently contains known physics bugs and inaccuracies. Use at your own risk and do not rely on the simulation for scientific accuracy or validated results.
