@@ -86,12 +86,14 @@ public:
                 .add<Selectable>()
                 .set<Draggable>({true, constants::dragVelScale});
         };
-        mk({constants::seedCenterX, constants::seedCenterY}, {0.0f, 0.0f}, constants::seedCentralMass, RED, false);
-        const float radius = constants::seedOffsetX;
-        const float v = std::sqrt(static_cast<float>(cfg.G) * constants::seedCentralMass / radius);
-        mk({constants::seedCenterX + radius, constants::seedCenterY}, {0.0f, v}, constants::seedSmallMass, BLUE, false);
-        mk({constants::seedCenterX - radius, constants::seedCenterY}, {0.0f, -v}, constants::seedSmallMass, GREEN,
-           false);
+        mk({static_cast<float>(constants::seedCenterX), static_cast<float>(constants::seedCenterY)}, {0.0f, 0.0f},
+           static_cast<float>(constants::seedCentralMass), RED, false);
+        const double radius = constants::seedOffsetX;
+        const float v = static_cast<float>(std::sqrt(cfg.G * constants::seedCentralMass / radius));
+        mk({static_cast<float>(constants::seedCenterX + radius), static_cast<float>(constants::seedCenterY)}, {0.0f, v},
+           static_cast<float>(constants::seedSmallMass), BLUE, false);
+        mk({static_cast<float>(constants::seedCenterX - radius), static_cast<float>(constants::seedCenterY)},
+           {0.0f, -v}, static_cast<float>(constants::seedSmallMass), GREEN, false);
         ZeroNetMomentum(w);
     }
 

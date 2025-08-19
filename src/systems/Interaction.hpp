@@ -3,6 +3,7 @@
 #include <cmath>
 #include <flecs.h>
 #include <imgui.h>
+#include <numbers>
 #include <raylib-cpp.hpp>
 #include <raymath.h>
 
@@ -80,15 +81,17 @@ public:
             const auto* pos = state->selectedEntity.get<Position>();
             const auto* mass = state->selectedEntity.get<Mass>();
             if (pos && mass) {
-                const float bodyRadius =
-                    std::max(nbody::constants::minBodyRadius,
-                             static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(mass->value)))));
-                const float ringRadius = bodyRadius + nbody::constants::ringExtraRadius;
-                DrawRing(pos->value, ringRadius, ringRadius + nbody::constants::ringThickness,
+                const double safeMass = std::max(1.0, static_cast<double>(mass->value));
+                const double rMeters =
+                    std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::bodyDensity));
+                const float minRadiusWorld = nbody::constants::minBodyRadius / camera.zoom;
+                const float bodyRadius = std::max(minRadiusWorld, static_cast<float>(rMeters));
+                const float ringRadius = bodyRadius + nbody::constants::ringExtraRadius / camera.zoom;
+                DrawRing(pos->value, ringRadius, ringRadius + nbody::constants::ringThickness / camera.zoom,
                          nbody::constants::ringStartAngle, nbody::constants::ringEndAngle,
                          nbody::constants::ringSegments, YELLOW);
                 DrawCircleLines(static_cast<int>(pos->value.x), static_cast<int>(pos->value.y),
-                                bodyRadius + nbody::constants::ringInnerOffset,
+                                bodyRadius + nbody::constants::ringInnerOffset / camera.zoom,
                                 ColorAlpha(WHITE, nbody::constants::selectedCircleAlpha));
             }
         }
@@ -105,7 +108,12 @@ private:
             const raylib::Vector2 delta = worldPos - pos.value;
             const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
             const double safeMass = std::max(1.0, static_cast<double>(mass.value));
-            const float bodyRadius = std::max(nbody::constants::minBodyRadius, static_cast<float>(std::cbrt(safeMass)));
+            const double rMeters =
+                std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::bodyDensity));
+            const Config* cfg = world.get<Config>();
+            const float minRadiusWorld =
+                nbody::constants::minBodyRadius / (cfg ? static_cast<float>(cfg->meterToPixel) : 1.0f);
+            const float bodyRadius = std::max(minRadiusWorld, static_cast<float>(rMeters));
             const float totalPickRadius = pickRadius + bodyRadius;
             if (dist2 <= totalPickRadius * totalPickRadius && dist2 < bestDist2) {
                 best = ent;
