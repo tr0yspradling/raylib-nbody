@@ -29,7 +29,6 @@ inline constexpr float minBodyRadius = 6.0F;
 inline constexpr float selectedCircleAlpha = 0.5F;
 
 inline constexpr double bodyDensity = 5510.0;  // kg/m^3, approx. Earth average
-
 inline constexpr float gridSpacing = 1.0e7F;
 inline constexpr float gridAxisEpsilon = 1e-4F;
 inline constexpr float gridStepsEpsilon = 1e-6F;
