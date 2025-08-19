@@ -36,12 +36,19 @@ void CreateInitialBodies(const flecs::world& world) {
             .set<Draggable>({true, nbody::constants::dragVelScale});  // Make all bodies draggable
     };
 
-    mk({nbody::constants::seedCenterX, nbody::constants::seedCenterY}, {0.0f, 0.0f}, nbody::constants::seedCentralMass,
-       RED, false);
-    mk({nbody::constants::seedCenterX + nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-       {0.0f, nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, BLUE, false);
-    mk({nbody::constants::seedCenterX - nbody::constants::seedOffsetX, nbody::constants::seedCenterY},
-       {0.0f, -nbody::constants::seedSpeed}, nbody::constants::seedSmallMass, GREEN, false);
+    mk({static_cast<float>(nbody::constants::seedCenterX), static_cast<float>(nbody::constants::seedCenterY)},
+       {0.0f, 0.0f}, static_cast<float>(nbody::constants::seedCentralMass), RED, false);
+
+    const Config* cfg = world.get<Config>();
+    const double radius = nbody::constants::seedOffsetX;
+    const float v = cfg ? static_cast<float>(std::sqrt(cfg->G * nbody::constants::seedCentralMass / radius)) : 0.0f;
+
+    mk({static_cast<float>(nbody::constants::seedCenterX + nbody::constants::seedOffsetX),
+        static_cast<float>(nbody::constants::seedCenterY)},
+       {0.0f, v}, static_cast<float>(nbody::constants::seedSmallMass), BLUE, false);
+    mk({static_cast<float>(nbody::constants::seedCenterX - nbody::constants::seedOffsetX),
+        static_cast<float>(nbody::constants::seedCenterY)},
+       {0.0f, -v}, static_cast<float>(nbody::constants::seedSmallMass), GREEN, false);
 }
 }  // namespace scenario
 

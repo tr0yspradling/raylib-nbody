@@ -65,7 +65,7 @@ private:
         ImGui::SliderFloat("Fixed dt", &cfg.fixedDt, nbody::constants::fixedDtMin, nbody::constants::fixedDtMax,
                            "%.6f");
         ImGui::SliderFloat("Time Scale", &cfg.timeScale, nbody::constants::timeScaleMin, nbody::constants::timeScaleMax,
-                           "%.3f");
+                           "%.2e", ImGuiSliderFlags_Logarithmic);
         ImGui::RadioButton("Semi-Implicit Euler", &cfg.integrator, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &cfg.integrator, 1);
@@ -78,12 +78,12 @@ private:
         ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Physics");
         auto Gf = static_cast<float>(cfg.G);
-        ImGui::SliderFloat("G", &Gf, nbody::constants::gMin, nbody::constants::gMax, "%.6f");
+        ImGui::SliderFloat("G", &Gf, nbody::constants::gMin, nbody::constants::gMax, "%.2e");
         cfg.G = Gf;
         ImGui::SliderFloat("Softening (epsilon)", &cfg.softening, nbody::constants::softeningMin,
-                           nbody::constants::softeningMax, "%.3f");
+                           nbody::constants::softeningMax, "%.2e");
         ImGui::SliderFloat("Velocity Cap", &cfg.maxSpeed, nbody::constants::velocityCapMin,
-                           nbody::constants::velocityCapMax, "%.1f");
+                           nbody::constants::velocityCapMax, "%.0f");
         if (ImGui::Button("Zero Net Momentum")) Physics::ZeroNetMomentum(w);
         ImGui::SameLine();
         if (ImGui::Button("Reset Scenario")) {
@@ -109,16 +109,16 @@ private:
     }
 
     static void DrawAddEditPanel(const flecs::world& w, raylib::Camera2D& cam, float& dragVelScale) {
-        static float spawnMass = nbody::constants::seedSmallMass;
+        static float spawnMass = static_cast<float>(nbody::constants::seedSmallMass);
         static raylib::Vector2 spawnVel{0, 0};
         static bool spawnPinned = false;
         ImGui::SetNextWindowPos(ImVec2(12, 420), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Add / Edit");
         ImGui::SliderFloat("Spawn Mass", &spawnMass, nbody::constants::spawnMassMin, nbody::constants::spawnMassMax,
-                           "%.1f");
+                           "%.2e", ImGuiSliderFlags_Logarithmic);
         ImGui::SliderFloat2("Spawn Velocity", &spawnVel.x, nbody::constants::spawnVelMin, nbody::constants::spawnVelMax,
-                            "%.3f");
+                            "%.1f");
         ImGui::Checkbox("Spawn Pinned", &spawnPinned);
         if (ImGui::Button("Add Body At Mouse")) {
             const raylib::Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), cam);
@@ -135,7 +135,7 @@ private:
                 .set<Draggable>({true, dragVelScale});
         }
         ImGui::SliderFloat("Right-Drag Vel Scale", &dragVelScale, nbody::constants::dragVelScaleMin,
-                           nbody::constants::dragVelScaleMax, "%.3f");
+                           nbody::constants::dragVelScaleMax, "%.1f");
 
         if (flecs::entity selected = Interaction::GetSelected(w); selected.is_alive()) {
             const auto mass = selected.get_mut<Mass>();
@@ -145,9 +145,9 @@ private:
                 ImGui::Text("Entity: %lld", static_cast<long long>(selected.id()));
                 ImGui::Checkbox("Pinned", &pin->value);
                 ImGui::SliderFloat("Mass", &mass->value, nbody::constants::selectedMassMin,
-                                   nbody::constants::selectedMassMax, "%.1f");
+                                   nbody::constants::selectedMassMax, "%.2e", ImGuiSliderFlags_Logarithmic);
                 ImGui::SliderFloat2("Velocity", &vel->value.x, nbody::constants::selectedVelMin,
-                                    nbody::constants::selectedVelMax, "%.3f");
+                                    nbody::constants::selectedVelMax, "%.1f");
                 if (ImGui::Button("Zero Velocity")) vel->value = raylib::Vector2{0.0f, 0.0f};
                 ImGui::SameLine();
                 if (ImGui::Button("Remove Body")) {
@@ -194,7 +194,7 @@ private:
                 ImGui::SameLine();
                 if (ImGui::Selectable(("Entity " + std::to_string(e.id())).c_str(), isSel)) pendingSelection = e;
                 ImGui::SameLine();
-                ImGui::Text("pos(%.1f, %.1f) m=%.1f", p->value.x, p->value.y, m->value);
+                ImGui::Text("pos(%.2e, %.2e) m=%.2e", p->value.x, p->value.y, m->value);
                 ImGui::PopID();
             }
         }
