@@ -5,10 +5,12 @@
 #include <raylib-cpp.hpp>
 
 // Global/singleton simulation configuration stored in flecs as a singleton component.
+// All physics values use SI units (meters, kilograms, seconds).
 struct Config {
     // Physics
-    double G = 6.67430e-3;
-    float softening = 4.0f;  // epsilon
+    double G = 6.67430e-11;  // gravitational constant (m^3 kg^-1 s^-2)
+    double meterToPixel = 1e-6;  // display scale: meters -> pixels
+    float softening = 4.0f;  // epsilon (m)
     float maxSpeed = 0.0f;  // 0 = uncapped
     int bhThreshold = 100;  // use Barnes-Hut when entity count exceeds this
     float bhTheta = 0.5f;  // opening angle criterion
