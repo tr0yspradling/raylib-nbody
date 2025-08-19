@@ -41,7 +41,10 @@ public:
     static void Register(const flecs::world& world) {
         world.set<CameraComponent>({});
         if (auto* cam = world.get_mut<CameraComponent>()) {
-            if (const Config* cfg = world.get<Config>()) cam->camera.zoom = static_cast<float>(cfg->meterToPixel);
+            if (const Config* cfg = world.get<Config>()) {
+                cam->camera.zoom = std::clamp(static_cast<float>(cfg->meterToPixel), nbody::constants::minZoom,
+                                              nbody::constants::maxZoom);
+            }
         }
         CenterOnCenterOfMass(world);
     }

@@ -46,8 +46,9 @@ inline constexpr double seedCenterY = 0.0;
 inline constexpr double seedOffsetX = 3.844e8;  // m (Earth-Moon distance)
 
 inline constexpr float zoomWheelScale = 0.1F;
-inline constexpr float minZoom = 0.05F;
-inline constexpr float maxZoom = 10.0F;
+// Camera zoom bounds aligned with meter-to-pixel display scale (~1e-6)
+inline constexpr float minZoom = 1e-9F;
+inline constexpr float maxZoom = 1e-3F;
 
 inline constexpr float fixedDtMin = 1e-4F;
 inline constexpr float fixedDtMax = 0.05F;
