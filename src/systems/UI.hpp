@@ -244,7 +244,7 @@ private:
         ImGui::Text("Total: %.6g", d.energy);
         ImGui::Text("Momentum: (%.6g, %.6g)", d.momentum.x, d.momentum.y);
         ImGui::Text("COM: (%.3f, %.3f)  Mass: %.3f", d.com.x, (d.totalMass > 0.0) ? d.com.y : 0.0f, d.totalMass);
-        if (!okDiag) ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Non-finite detected; auto-paused.");
+        if (!okDiag) ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Non-finite diagnostics detected; auto-paused.");
         ImGui::End();
     }
 
