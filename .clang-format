@@ -39,12 +39,13 @@ IncludeCategories:
     Priority: 3
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IndentCaseBlocks: true
+IndentAccessModifiers: false
 IndentWidth: 4
 InsertNewlineAtEOF: true
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 2
-NamespaceIndentation: All
+NamespaceIndentation: Inner
 PointerAlignment: Left
 SpaceInEmptyParentheses: false
 SpacesInAngles: false
