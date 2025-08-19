@@ -78,11 +78,9 @@ public:
         BeginMode2D(camera);
         if (state->selectedEntity.is_alive()) {
             const auto* pos = state->selectedEntity.get<Position>();
-            const auto* mass = state->selectedEntity.get<Mass>();
-            if (pos && mass) {
-                const float bodyRadius =
-                    std::max(nbody::constants::minBodyRadius,
-                             static_cast<float>(std::cbrt(std::max(1.0, static_cast<double>(mass->value)))));
+            const auto* radius = state->selectedEntity.get<Radius>();
+            if (pos && radius) {
+                const float bodyRadius = std::max(nbody::constants::minBodyRadius, radius->value);
                 const float ringRadius = bodyRadius + nbody::constants::ringExtraRadius;
                 DrawRing(pos->value, ringRadius, ringRadius + nbody::constants::ringThickness,
                          nbody::constants::ringStartAngle, nbody::constants::ringEndAngle,
@@ -100,18 +98,18 @@ private:
                                               float pickRadius) {
         flecs::entity best = flecs::entity::null();
         float bestDist2 = pickRadius * pickRadius;
-        world.each([&](const flecs::entity ent, const Position& pos, const Mass& mass, const Selectable& selectable) {
-            if (!selectable.canSelect) return;
-            const raylib::Vector2 delta = worldPos - pos.value;
-            const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
-            const double safeMass = std::max(1.0, static_cast<double>(mass.value));
-            const float bodyRadius = std::max(nbody::constants::minBodyRadius, static_cast<float>(std::cbrt(safeMass)));
-            const float totalPickRadius = pickRadius + bodyRadius;
-            if (dist2 <= totalPickRadius * totalPickRadius && dist2 < bestDist2) {
-                best = ent;
-                bestDist2 = dist2;
-            }
-        });
+        world.each(
+            [&](const flecs::entity ent, const Position& pos, const Radius& radius, const Selectable& selectable) {
+                if (!selectable.canSelect) return;
+                const raylib::Vector2 delta = worldPos - pos.value;
+                const float dist2 = (delta.x * delta.x) + (delta.y * delta.y);
+                const float bodyRadius = std::max(nbody::constants::minBodyRadius, radius.value);
+                const float totalPickRadius = pickRadius + bodyRadius;
+                if (dist2 <= totalPickRadius * totalPickRadius && dist2 < bestDist2) {
+                    best = ent;
+                    bestDist2 = dist2;
+                }
+            });
         return best;
     }
 

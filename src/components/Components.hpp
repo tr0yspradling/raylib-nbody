@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <raylib-cpp.hpp>
 #include <vector>
 
@@ -19,6 +21,9 @@ struct PrevAcceleration {
     raylib::Vector2 value;
 };
 struct Mass {
+    float value;
+};
+struct Radius {
     float value;
 };
 struct Pinned {
@@ -46,5 +51,10 @@ struct Draggable {
     bool canDragVelocity = true;
     float dragScale = nbody::constants::dragVelScale;
 };
+
+inline float MassToRadius(float mass) {
+    const double safeMass = std::max(1.0, static_cast<double>(mass));
+    return std::max(nbody::constants::minBodyRadius, static_cast<float>(std::cbrt(safeMass)));
+}
 
 // (removed) MouseInteraction: legacy input state no longer used

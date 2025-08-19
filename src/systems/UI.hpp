@@ -84,6 +84,7 @@ private:
                            nbody::constants::softeningMax, "%.2e");
         ImGui::SliderFloat("Velocity Cap", &cfg.maxSpeed, nbody::constants::velocityCapMin,
                            nbody::constants::velocityCapMax, "%.0f");
+        ImGui::Checkbox("Elastic Collisions", &cfg.elasticCollisions);
         if (ImGui::Button("Zero Net Momentum")) Physics::ZeroNetMomentum(w);
         ImGui::SameLine();
         if (ImGui::Button("Reset Scenario")) {
@@ -128,6 +129,7 @@ private:
                 .set<Acceleration>({raylib::Vector2{0, 0}})
                 .set<PrevAcceleration>({raylib::Vector2{0, 0}})
                 .set<Mass>({std::max(nbody::constants::spawnMassMin, spawnMass)})
+                .set<Radius>({MassToRadius(std::max(nbody::constants::spawnMassMin, spawnMass))})
                 .set<Pinned>({spawnPinned})
                 .set<Tint>({RandomNiceColor()})
                 .set<Trail>({{}})
@@ -141,6 +143,7 @@ private:
             const auto mass = selected.get_mut<Mass>();
             const auto vel = selected.get_mut<Velocity>();
             const auto pin = selected.get_mut<Pinned>();
+            auto radius = selected.get_mut<Radius>();
             if (ImGui::CollapsingHeader("Selected Body", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Text("Entity: %lld", static_cast<long long>(selected.id()));
                 ImGui::Checkbox("Pinned", &pin->value);
@@ -148,6 +151,7 @@ private:
                                    nbody::constants::selectedMassMax, "%.2e");
                 ImGui::SliderFloat2("Velocity", &vel->value.x, nbody::constants::selectedVelMin,
                                     nbody::constants::selectedVelMax, "%.1f");
+                if (radius) radius->value = MassToRadius(mass->value);
                 if (ImGui::Button("Zero Velocity")) vel->value = raylib::Vector2{0.0f, 0.0f};
                 ImGui::SameLine();
                 if (ImGui::Button("Remove Body")) {
@@ -204,10 +208,11 @@ private:
             if (flecs::entity selected = Interaction::GetSelected(w); selected.is_alive()) {
                 const auto e = selected;
                 if (const auto p0 = e.get<Position>();
-                    p0 && e.get<Velocity>() && e.get<Mass>() && e.get<Tint>() && e.get<Pinned>()) {
+                    p0 && e.get<Velocity>() && e.get<Mass>() && e.get<Radius>() && e.get<Tint>() && e.get<Pinned>()) {
                     auto p = *p0;
                     auto v = *e.get<Velocity>();
                     auto m = *e.get<Mass>();
+                    auto r = *e.get<Radius>();
                     auto t = *e.get<Tint>();
                     auto pin = *e.get<Pinned>();
                     p.value += raylib::Vector2{nbody::constants::duplicateOffsetX, 0.0f};
@@ -217,6 +222,7 @@ private:
                         .set(Acceleration{raylib::Vector2{0, 0}})
                         .set(PrevAcceleration{raylib::Vector2{0, 0}})
                         .set(m)
+                        .set(r)
                         .set(pin)
                         .set(t)
                         .set(Trail{{}})

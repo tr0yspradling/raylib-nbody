@@ -14,6 +14,7 @@ struct Config {
     float maxSpeed = 0.0f;  // 0 = uncapped
     int bhThreshold = 100;  // use Barnes-Hut when entity count exceeds this
     float bhTheta = 0.5f;  // opening angle criterion
+    bool elasticCollisions = false;
 
     // Time & integrator
     bool paused = false;

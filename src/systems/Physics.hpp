@@ -13,6 +13,7 @@
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
 #include "../physics/SpatialPartition.hpp"
+#include "Collision.hpp"
 
 namespace nbody {
 
@@ -28,9 +29,20 @@ public:
     };
 
     static void Register(const flecs::world& w) {
-        // Gravity: once per frame before integration.
+        // Collisions and gravity: once per frame before integration.
         w.system<>().kind(flecs::OnUpdate).iter([&](flecs::iter&) {
-            if (const Config& cfg = *w.get<Config>(); cfg.paused) return;
+            auto* cfg = w.get_mut<Config>();
+            if (!cfg || cfg->paused) return;
+            const double eps2 = static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening);
+            Diagnostics before{};
+            ComputeDiagnostics(w, cfg->G, eps2, before);
+            Collision::Process(w);
+            Diagnostics after{};
+            if (!ComputeDiagnostics(w, cfg->G, eps2, after)) cfg->paused = true;
+            if (cfg->elasticCollisions) {
+                const double diff = std::abs(after.energy - before.energy);
+                if (diff > std::abs(before.energy) * 1e-3) cfg->paused = true;
+            }
             compute_gravity(w);
         });
 
@@ -80,6 +92,7 @@ public:
                 .set<Acceleration>({raylib::Vector2{0, 0}})
                 .set<PrevAcceleration>({raylib::Vector2{0, 0}})
                 .set<Mass>({mass})
+                .set<Radius>({MassToRadius(mass)})
                 .set<Pinned>({pinned})
                 .set<Tint>({col})
                 .set<Trail>({{}})
