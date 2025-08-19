@@ -77,6 +77,12 @@ public:
         const auto* state = world.get<State>();
         if (!state) return;
         BeginMode2D(camera);
+        if (state->isDraggingVelocity) {
+            DrawLineEx(state->dragStartWorld, state->currentDragWorld, nbody::constants::dragLineWidth / camera.zoom,
+                       WHITE);
+            DrawCircleV(state->dragStartWorld, nbody::constants::dragCircleRadius / camera.zoom, WHITE);
+            DrawCircleV(state->currentDragWorld, nbody::constants::dragCircleRadius / camera.zoom, WHITE);
+        }
         if (state->selectedEntity.is_alive()) {
             const auto* pos = state->selectedEntity.get<Position>();
             const auto* mass = state->selectedEntity.get<Mass>();
@@ -183,9 +189,10 @@ private:
         auto* cfg = world.get_mut<Config>();
         if (!state || !cfg || !state->selectedEntity.is_alive()) return;
         const auto* draggable = state->selectedEntity.get<Draggable>();
-        if (!draggable || !draggable->canDragVelocity) return;
+        const auto* position = state->selectedEntity.get<Position>();
+        if (!draggable || !draggable->canDragVelocity || !position) return;
         state->isDraggingVelocity = true;
-        state->dragStartWorld = worldPos;
+        state->dragStartWorld = position->value;
         state->currentDragWorld = worldPos;
         cfg->paused = true;
     }
@@ -204,7 +211,11 @@ private:
     }
 
     static void EndVelocityDrag(const flecs::world& world) {
-        if (auto* state = world.get_mut<State>()) state->isDraggingVelocity = false;
+        if (auto* state = world.get_mut<State>()) {
+            state->isDraggingVelocity = false;
+            state->dragStartWorld = raylib::Vector2{0.0f, 0.0f};
+            state->currentDragWorld = raylib::Vector2{0.0f, 0.0f};
+        }
     }
 };
 
