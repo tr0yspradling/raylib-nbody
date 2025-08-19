@@ -6,6 +6,7 @@
 #include <numbers>
 #include <raylib-cpp.hpp>
 #include <raymath.h>
+#include <vector>
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
@@ -33,24 +34,41 @@ public:
             });
         }
 
-        w.each([&](const Position& p, const Velocity& v, const Acceleration& a, const Mass& m, const Tint& tint) {
-            const double safeMass = std::max(1.0, static_cast<double>(m.value));
+        std::vector<flecs::entity> entities;
+        w.each([&](const flecs::entity e, const Position&, const Velocity&, const Acceleration&, const Mass&,
+                   const Tint&) { entities.push_back(e); });
+        std::sort(entities.begin(), entities.end(), [](flecs::entity a, flecs::entity b) {
+            const auto* ma = a.get<Mass>();
+            const auto* mb = b.get<Mass>();
+            const float av = ma ? ma->value : 0.0f;
+            const float bv = mb ? mb->value : 0.0f;
+            return av > bv;
+        });
+        for (auto e : entities) {
+            const auto* p = e.get<Position>();
+            const auto* v = e.get<Velocity>();
+            const auto* a = e.get<Acceleration>();
+            const auto* m = e.get<Mass>();
+            const auto* tint = e.get<Tint>();
+            if (!p || !v || !a || !m || !tint) continue;
+            const double safeMass = std::max(1.0, static_cast<double>(m->value));
             const double rMeters =
                 std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::bodyDensity));
             const float minRadiusWorld = nbody::constants::minBodyRadius / cam.zoom;
             const float r = std::max(minRadiusWorld, static_cast<float>(rMeters));
-            DrawCircleV(p.value, r, tint.value);
+            DrawCircleV(p->value, r, tint->value);
             if (cfg.drawVelocity) {
-                const float velScale = nbody::constants::velVectorScale / cam.zoom;
-                const raylib::Vector2 tip = p.value + v.value * velScale;
-                DrawLineEx(p.value, tip, nbody::constants::velLineWidth / cam.zoom, WHITE);
+                float velScale = nbody::constants::velVectorScale / cam.zoom;
+                if (const auto* drag = e.get<Draggable>()) velScale = 1.0f / drag->dragScale;
+                const raylib::Vector2 tip = p->value + v->value * velScale;
+                DrawLineEx(p->value, tip, nbody::constants::velLineWidth / cam.zoom, WHITE);
             }
             if (cfg.drawAcceleration) {
                 const float accScale = nbody::constants::accVectorScale / cam.zoom;
-                const raylib::Vector2 tip = p.value + a.value * accScale;
-                DrawLineEx(p.value, tip, nbody::constants::accLineWidth / cam.zoom, ORANGE);
+                const raylib::Vector2 tip = p->value + a->value * accScale;
+                DrawLineEx(p->value, tip, nbody::constants::accLineWidth / cam.zoom, ORANGE);
             }
-        });
+        }
 
         EndMode2D();
     }

@@ -77,6 +77,12 @@ public:
         const auto* state = world.get<State>();
         if (!state) return;
         BeginMode2D(camera);
+        if (state->isDraggingVelocity) {
+            DrawLineEx(state->dragStartWorld, state->currentDragWorld, nbody::constants::dragLineWidth / camera.zoom,
+                       WHITE);
+            DrawCircleV(state->dragStartWorld, nbody::constants::dragCircleRadius / camera.zoom, WHITE);
+            DrawCircleV(state->currentDragWorld, nbody::constants::dragCircleRadius / camera.zoom, WHITE);
+        }
         if (state->selectedEntity.is_alive()) {
             const auto* pos = state->selectedEntity.get<Position>();
             const auto* mass = state->selectedEntity.get<Mass>();
