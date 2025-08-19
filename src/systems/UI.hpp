@@ -65,7 +65,7 @@ private:
         ImGui::SliderFloat("Fixed dt", &cfg.fixedDt, nbody::constants::fixedDtMin, nbody::constants::fixedDtMax,
                            "%.6f");
         ImGui::SliderFloat("Time Scale", &cfg.timeScale, nbody::constants::timeScaleMin, nbody::constants::timeScaleMax,
-                           "%.3f");
+                           "%.2e", ImGuiSliderFlags_Logarithmic);
         ImGui::RadioButton("Semi-Implicit Euler", &cfg.integrator, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &cfg.integrator, 1);
@@ -116,7 +116,7 @@ private:
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Add / Edit");
         ImGui::SliderFloat("Spawn Mass", &spawnMass, nbody::constants::spawnMassMin, nbody::constants::spawnMassMax,
-                           "%.2e");
+                           "%.2e", ImGuiSliderFlags_Logarithmic);
         ImGui::SliderFloat2("Spawn Velocity", &spawnVel.x, nbody::constants::spawnVelMin, nbody::constants::spawnVelMax,
                             "%.1f");
         ImGui::Checkbox("Spawn Pinned", &spawnPinned);
@@ -145,7 +145,7 @@ private:
                 ImGui::Text("Entity: %lld", static_cast<long long>(selected.id()));
                 ImGui::Checkbox("Pinned", &pin->value);
                 ImGui::SliderFloat("Mass", &mass->value, nbody::constants::selectedMassMin,
-                                   nbody::constants::selectedMassMax, "%.2e");
+                                   nbody::constants::selectedMassMax, "%.2e", ImGuiSliderFlags_Logarithmic);
                 ImGui::SliderFloat2("Velocity", &vel->value.x, nbody::constants::selectedVelMin,
                                     nbody::constants::selectedVelMax, "%.1f");
                 if (ImGui::Button("Zero Velocity")) vel->value = raylib::Vector2{0.0f, 0.0f};

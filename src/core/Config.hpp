@@ -19,7 +19,7 @@ struct Config {
     bool paused = false;
     bool useFixedDt = false;
     float fixedDt = 1.0f / 120.0f;
-    float timeScale = 1.0f;
+    float timeScale = 1e6f;
     int integrator = 1;  // 0 = Semi-Implicit Euler, 1 = Velocity Verlet
 
     // Visuals
