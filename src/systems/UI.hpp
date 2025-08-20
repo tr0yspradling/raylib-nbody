@@ -15,10 +15,10 @@
 #include "../core/Colors.hpp"
 #include "../core/Config.hpp"
 #include "../core/Constants.hpp"
+#include "../core/Scenario.hpp"
 #include "Camera.hpp"
 #include "Interaction.hpp"
 #include "Physics.hpp"
-#include "../core/Scenario.hpp"
 
 namespace nbody {
 
@@ -39,11 +39,11 @@ public:
         const ImGuiIO& io = ImGui::GetIO();
         const bool kb_free = !(io.WantCaptureKeyboard);
         if (kb_free) {
-            if (IsKeyPressed(KEY_R)) s_open_confirm_reset_all = true;              // Reset All (with confirm)
-            if (IsKeyPressed(KEY_S)) perform_reset_scenario(w, *cfg);             // Reset Scenario
-            if (IsKeyPressed(KEY_V)) Camera::reset_view(w);                      // Reset View
-            if (IsKeyPressed(KEY_C)) Camera::center_on_center_of_mass(w);        // Center View to COM
-            if (IsKeyPressed(KEY_Z)) Physics::zero_net_momentum(w);              // Zero Momentum
+            if (IsKeyPressed(KEY_R)) s_open_confirm_reset_all = true;  // Reset All (with confirm)
+            if (IsKeyPressed(KEY_S)) perform_reset_scenario(w, *cfg);  // Reset Scenario
+            if (IsKeyPressed(KEY_V)) Camera::reset_view(w);  // Reset View
+            if (IsKeyPressed(KEY_C)) Camera::center_on_center_of_mass(w);  // Center View to COM
+            if (IsKeyPressed(KEY_Z)) Physics::zero_net_momentum(w);  // Zero Momentum
         }
 
         draw_time_integrator_panel(w, *cfg, requestStep);
@@ -87,7 +87,9 @@ private:
         if (ImGui::Button("Reset ALL (R)")) s_open_confirm_reset_all = true;
         if (s_open_confirm_reset_all) ImGui::OpenPopup("Confirm Reset All");
         if (ImGui::BeginPopupModal("Confirm Reset All", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::TextWrapped("This will reset: bodies, configuration (time scale, integrator, visuals), camera view, and UI inputs. Are you sure?");
+            ImGui::TextWrapped(
+                "This will reset: bodies, configuration (time scale, integrator, visuals), camera view, and UI inputs. "
+                "Are you sure?");
             if (ImGui::Button("Reset", ImVec2(120, 0))) {
                 perform_reset_all(w);
                 ImGui::CloseCurrentPopup();
@@ -103,13 +105,14 @@ private:
         ImGui::Checkbox("Use Fixed dt", &cfg.use_fixed_dt);
         ImGui::SliderFloat("Fixed dt", &cfg.fixed_dt, nbody::constants::fixed_dt_min, nbody::constants::fixed_dt_max,
                            "%.6f");
-        ImGui::SliderFloat("Time Scale", &cfg.time_scale, nbody::constants::time_scale_min, nbody::constants::time_scale_max,
-                           "%.2e", ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("Time Scale", &cfg.time_scale, nbody::constants::time_scale_min,
+                           nbody::constants::time_scale_max, "%.2e", ImGuiSliderFlags_Logarithmic);
         ImGui::RadioButton("Semi-Implicit Euler", &cfg.integrator, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Velocity Verlet", &cfg.integrator, 1);
         if (ImGui::CollapsingHeader("Advanced Stability", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::SliderFloat("Max Substep (s)", &cfg.max_substep, 0.01f, 3600.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+            ImGui::SliderFloat("Max Substep (s)", &cfg.max_substep, 0.01f, 3600.0f, "%.2f",
+                               ImGuiSliderFlags_Logarithmic);
             ImGui::SliderInt("Max Substeps / Frame", &cfg.max_substeps_per_frame, 1, 2000);
         }
         ImGui::Text("Last step: %.3f ms", cfg.last_step_ms);
@@ -160,10 +163,10 @@ private:
         ImGui::SetNextWindowPos(ImVec2(12, 420), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Add / Edit");
-        ImGui::SliderFloat("Spawn Mass", &cfg->add_spawn_mass, nbody::constants::spawn_mass_min, nbody::constants::spawn_mass_max,
-                            "%.2e", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat2("Spawn Velocity", &cfg->add_spawn_velocity.x, nbody::constants::spawn_vel_min, nbody::constants::spawn_vel_max,
-                            "%.1f");
+        ImGui::SliderFloat("Spawn Mass", &cfg->add_spawn_mass, nbody::constants::spawn_mass_min,
+                           nbody::constants::spawn_mass_max, "%.2e", ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat2("Spawn Velocity", &cfg->add_spawn_velocity.x, nbody::constants::spawn_vel_min,
+                            nbody::constants::spawn_vel_max, "%.1f");
         ImGui::Checkbox("Spawn Pinned", &cfg->add_spawn_pinned);
         ImGui::Checkbox("Shift+Click Adds Body", &cfg->enable_shift_click_add);
         if (ImGui::Button("Add Body At Mouse")) {
@@ -194,7 +197,8 @@ private:
                                        nbody::constants::selected_mass_max, "%.2e", ImGuiSliderFlags_Logarithmic)) {
                     if (auto* r = selected.get_mut<Radius>()) {
                         const double safeMass = std::max(1.0, static_cast<double>(mass->value));
-                        r->value = std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::body_density));
+                        r->value =
+                            std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::body_density));
                     }
                 }
                 float velTmp[2] = {static_cast<float>(vel->value.x), static_cast<float>(vel->value.y)};
@@ -211,7 +215,8 @@ private:
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Focus Camera")) {
-                    if (const auto p = selected.get<Position>()) cam.target = raylib::Vector2{static_cast<float>(p->value.x), static_cast<float>(p->value.y)};
+                    if (const auto p = selected.get<Position>())
+                        cam.target = raylib::Vector2{static_cast<float>(p->value.x), static_cast<float>(p->value.y)};
                 }
             }
         }
@@ -290,8 +295,12 @@ private:
 
     static void draw_diagnostics_panel(const flecs::world& w, const Config& cfg) {
         Physics::Diagnostics d{};
-        const bool okDiag = Physics::compute_diagnostics(
-            w, cfg.g, static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening), d);
+        if (const auto* dp = w.get<Physics::Diagnostics>()) {
+            d = *dp;
+        } else {
+            d.ok = Physics::compute_diagnostics(
+                w, cfg.g, static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening), d);
+        }
         ImGui::SetNextWindowPos(ImVec2(400, 390), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Diagnostics");
@@ -300,7 +309,7 @@ private:
         ImGui::Text("Total: %.6g", d.energy);
         ImGui::Text("Momentum: (%.6g, %.6g)", d.momentum.x, d.momentum.y);
         ImGui::Text("COM: (%.3f, %.3f)  Mass: %.3f", d.com.x, (d.totalMass > 0.0) ? d.com.y : 0.0, d.totalMass);
-        if (!okDiag) ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Non-finite diagnostics detected; auto-paused.");
+        if (!d.ok) ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Non-finite diagnostics detected; auto-paused.");
         ImGui::End();
     }
 
@@ -417,9 +426,10 @@ private:
                     }
                     ImGui::NewLine();
                 }
-                ImGui::Text("Bodies: %zu  G: %.2e  Soft: %.2e  dtScale: %.2e  Integrator: %d  RadScale: %.2f  Trails:%s",
-                            s.bodies.size(), s.g, s.softening, s.time_scale, s.integrator, s.radius_scale,
-                            s.draw_trails ? "on" : "off");
+                ImGui::Text(
+                    "Bodies: %zu  G: %.2e  Soft: %.2e  dtScale: %.2e  Integrator: %d  RadScale: %.2f  Trails:%s",
+                    s.bodies.size(), s.g, s.softening, s.time_scale, s.integrator, s.radius_scale,
+                    s.draw_trails ? "on" : "off");
             }
         }
         ImGui::EndChild();
@@ -471,7 +481,7 @@ private:
             Camera::init(*cam);
             if (const auto* c = w.get<Config>())
                 cam->zoom = std::clamp(static_cast<float>(c->meter_to_pixel), nbody::constants::min_zoom,
-                                        nbody::constants::max_zoom);
+                                       nbody::constants::max_zoom);
         }
         Camera::center_on_center_of_mass(w);
 

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <flecs.h>
+#include <numbers>
 
 #include "../components/Components.hpp"
 #include "../core/Constants.hpp"
@@ -27,13 +28,17 @@ struct Collision {
     static inline double radius_of(const flecs::entity& e, const Mass& m) {
         if (const auto* r = e.get<Radius>()) return r->value;
         const double safeMass = std::max(1.0, static_cast<double>(m.value));
+        double density = nbody::constants::body_density;
+        if (const auto* d = e.get<Density>()) density = d->value;
         // Sphere radius from mass and density: r = cbrt(3M / (4πρ))
-        return std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * nbody::constants::body_density));
+        return std::cbrt((3.0 * safeMass) / (4.0 * std::numbers::pi * density));
     }
 
     static inline void update_radius_from_mass(flecs::entity& e, const Mass& m) {
-        const double r = std::cbrt((3.0 * std::max(1.0, static_cast<double>(m.value))) /
-                                   (4.0 * std::numbers::pi * nbody::constants::body_density));
+        double density = nbody::constants::body_density;
+        if (const auto* d = e.get<Density>()) density = d->value;
+        const double r =
+            std::cbrt((3.0 * std::max(1.0, static_cast<double>(m.value))) / (4.0 * std::numbers::pi * density));
         if (auto* rp = e.get_mut<Radius>()) {
             rp->value = r;
         } else {
@@ -87,8 +92,8 @@ struct Collision {
                 if (!kElastic) {
                     // Choose survivor: heavier mass wins to reduce jitter
                     const bool a_survives = (A.m >= B.m) || B.pinned;
-                    BodyRef &S = a_survives ? A : B;
-                    BodyRef &D = a_survives ? B : A;
+                    BodyRef& S = a_survives ? A : B;
+                    BodyRef& D = a_survives ? B : A;
                     if (D.pinned && S.pinned) {
                         // Both pinned: just separate a bit to avoid sticking
                         const double penetration = rsum - dist;
@@ -147,8 +152,10 @@ struct Collision {
                     DVec2 nv2 = v2;
 
                     if (!A.pinned && !B.pinned) {
-                        const double f1 = (2.0 * m2 / (m1 + m2)) * ((v1.x - v2.x) * x1mx2.x + (v1.y - v2.y) * x1mx2.y) / l2;
-                        const double f2 = (2.0 * m1 / (m1 + m2)) * ((v2.x - v1.x) * x2mx1.x + (v2.y - v1.y) * x2mx1.y) / l2;
+                        const double f1 =
+                            (2.0 * m2 / (m1 + m2)) * ((v1.x - v2.x) * x1mx2.x + (v1.y - v2.y) * x1mx2.y) / l2;
+                        const double f2 =
+                            (2.0 * m1 / (m1 + m2)) * ((v2.x - v1.x) * x2mx1.x + (v2.y - v1.y) * x2mx1.y) / l2;
                         nv1.x = v1.x - f1 * x1mx2.x;
                         nv1.y = v1.y - f1 * x1mx2.y;
                         nv2.x = v2.x - f2 * x2mx1.x;
