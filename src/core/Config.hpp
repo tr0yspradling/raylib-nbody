@@ -37,6 +37,16 @@ struct Config {
 
     // UI/runtime
     double last_step_ms = 0.0;
+
+    // Add/Edit defaults and shortcuts
+    // Defaults for adding bodies from UI or shortcut
+    float add_spawn_mass = static_cast<float>(nbody::constants::seed_small_mass);
+    raylib::Vector2 add_spawn_velocity{0.0f, 0.0f};
+    bool add_spawn_pinned = false;
+    // Default drag sensitivity applied to newly added/duplicated bodies
+    float add_drag_vel_scale = nbody::constants::drag_vel_scale;
+    // Enable Shift+Click to add a body at mouse
+    bool enable_shift_click_add = false;
 };
 
 // (removed) Legacy Selection/CameraState: superseded by Interaction/Camera systems

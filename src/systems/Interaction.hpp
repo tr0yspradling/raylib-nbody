@@ -9,6 +9,7 @@
 
 #include "../components/Components.hpp"
 #include "../core/Config.hpp"
+#include "../core/Colors.hpp"
 #include "../core/Constants.hpp"
 #include "Camera.hpp"
 
@@ -64,6 +65,27 @@ public:
         const raylib::Vector2 mouseScreen = GetMousePosition();
         const DVec2 mouseWorld = dvec2(GetScreenToWorld2D(mouseScreen, camera));
         const float pickRadius = nbody::constants::pick_radius_px / camera.zoom;
+
+        // Shortcut: Shift+Click adds a body at mouse when enabled
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            const auto* cfg = world.get<Config>();
+            const bool shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+            if (cfg && cfg->enable_shift_click_add && shiftDown) {
+                world.entity()
+                    .set<Position>({mouseWorld})
+                    .set<Velocity>({dvec2(cfg->add_spawn_velocity)})
+                    .set<Acceleration>({DVec2{0.0, 0.0}})
+                    .set<PrevAcceleration>({DVec2{0.0, 0.0}})
+                    .set<Mass>({std::max(nbody::constants::spawn_mass_min, cfg->add_spawn_mass)})
+                    .set<Pinned>({cfg->add_spawn_pinned})
+                    .set<Tint>({random_nice_color()})
+                    .set<Trail>({{}})
+                    .add<Selectable>()
+                    .set<Draggable>({true, cfg->add_drag_vel_scale});
+                // Do not process this click further (avoid panning/selection)
+                return;
+            }
+        }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) handle_mouse_press(world, state, mouseWorld, pickRadius);
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) handle_mouse_drag(world, state, mouseWorld);

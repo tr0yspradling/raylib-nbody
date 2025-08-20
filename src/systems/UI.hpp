@@ -33,7 +33,6 @@ public:
         auto* cfg = w.get_mut<Config>();
         if (!cfg) return;
         bool requestStep = false;
-        static float drag_vel_scale = nbody::constants::drag_vel_scale;
         flecs::entity pendingSelection = flecs::entity::null();
 
         // Keyboard shortcuts (when UI isn't typing into a widget)
@@ -50,8 +49,8 @@ public:
         draw_time_integrator_panel(w, *cfg, requestStep);
         draw_physics_panel(w, *cfg);
         draw_visuals_panel(*cfg);
-        draw_add_edit_panel(w, cam, drag_vel_scale);
-        draw_bodies_panel(w, drag_vel_scale, pendingSelection);
+        draw_add_edit_panel(w, cam);
+        draw_bodies_panel(w, pendingSelection);
         draw_diagnostics_panel(w, *cfg);
         draw_scenarios_panel(w);
 
@@ -147,40 +146,41 @@ private:
         ImGui::End();
     }
 
-    static void draw_add_edit_panel(const flecs::world& w, raylib::Camera2D& cam, float& drag_vel_scale) {
-        static float spawn_mass = static_cast<float>(nbody::constants::seed_small_mass);
-        static raylib::Vector2 spawn_vel{0, 0};
-        static bool spawn_pinned = false;
+    static void draw_add_edit_panel(const flecs::world& w, raylib::Camera2D& cam) {
+        auto* cfg = w.get_mut<Config>();
+        if (!cfg) return;
         if (s_pending_reset_inputs) {
-            spawn_mass = static_cast<float>(nbody::constants::seed_small_mass);
-            spawn_vel = raylib::Vector2{0.0f, 0.0f};
-            spawn_pinned = false;
-            drag_vel_scale = nbody::constants::drag_vel_scale;
+            cfg->add_spawn_mass = static_cast<float>(nbody::constants::seed_small_mass);
+            cfg->add_spawn_velocity = raylib::Vector2{0.0f, 0.0f};
+            cfg->add_spawn_pinned = false;
+            cfg->add_drag_vel_scale = nbody::constants::drag_vel_scale;
+            cfg->enable_shift_click_add = false;
             s_pending_reset_inputs = false;
         }
         ImGui::SetNextWindowPos(ImVec2(12, 420), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Add / Edit");
-        ImGui::SliderFloat("Spawn Mass", &spawn_mass, nbody::constants::spawn_mass_min, nbody::constants::spawn_mass_max,
+        ImGui::SliderFloat("Spawn Mass", &cfg->add_spawn_mass, nbody::constants::spawn_mass_min, nbody::constants::spawn_mass_max,
                             "%.2e", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat2("Spawn Velocity", &spawn_vel.x, nbody::constants::spawn_vel_min, nbody::constants::spawn_vel_max,
+        ImGui::SliderFloat2("Spawn Velocity", &cfg->add_spawn_velocity.x, nbody::constants::spawn_vel_min, nbody::constants::spawn_vel_max,
                             "%.1f");
-        ImGui::Checkbox("Spawn Pinned", &spawn_pinned);
+        ImGui::Checkbox("Spawn Pinned", &cfg->add_spawn_pinned);
+        ImGui::Checkbox("Shift+Click Adds Body", &cfg->enable_shift_click_add);
         if (ImGui::Button("Add Body At Mouse")) {
             const raylib::Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), cam);
             w.entity()
                 .set<Position>({dvec2(mouseWorld)})
-                .set<Velocity>({dvec2(spawn_vel)})
+                .set<Velocity>({dvec2(cfg->add_spawn_velocity)})
                 .set<Acceleration>({DVec2{0.0, 0.0}})
                 .set<PrevAcceleration>({DVec2{0.0, 0.0}})
-                .set<Mass>({std::max(nbody::constants::spawn_mass_min, spawn_mass)})
-                .set<Pinned>({spawn_pinned})
+                .set<Mass>({std::max(nbody::constants::spawn_mass_min, cfg->add_spawn_mass)})
+                .set<Pinned>({cfg->add_spawn_pinned})
                 .set<Tint>({random_nice_color()})
                 .set<Trail>({{}})
                 .add<Selectable>()
-                .set<Draggable>({true, drag_vel_scale});
+                .set<Draggable>({true, cfg->add_drag_vel_scale});
         }
-        ImGui::SliderFloat("Right-Drag Sensitivity", &drag_vel_scale, nbody::constants::drag_vel_scale_min,
+        ImGui::SliderFloat("Right-Drag Sensitivity", &cfg->add_drag_vel_scale, nbody::constants::drag_vel_scale_min,
                            nbody::constants::drag_vel_scale_max, "%.3f", ImGuiSliderFlags_Logarithmic);
 
         if (flecs::entity selected = Interaction::get_selected(w); selected.is_alive()) {
@@ -218,7 +218,7 @@ private:
         ImGui::End();
     }
 
-    static void draw_bodies_panel(const flecs::world& w, float drag_vel_scale, flecs::entity& pendingSelection) {
+    static void draw_bodies_panel(const flecs::world& w, flecs::entity& pendingSelection) {
         ImGui::SetNextWindowPos(ImVec2(400, 12), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 360), ImGuiCond_FirstUseEver);
         ImGui::Begin("Bodies");
@@ -256,6 +256,7 @@ private:
         ImGui::EndChild();
 
         if (ImGui::Button("Duplicate Selected")) {
+            const auto* cfg = w.get<Config>();
             if (flecs::entity selected = Interaction::get_selected(w); selected.is_alive()) {
                 const auto e = selected;
                 if (const auto p0 = e.get<Position>();
@@ -276,7 +277,7 @@ private:
                         .set(t)
                         .set(Trail{{}})
                         .add<Selectable>()
-                        .set<Draggable>({true, drag_vel_scale});
+                        .set<Draggable>({true, cfg ? cfg->add_drag_vel_scale : nbody::constants::drag_vel_scale});
                 }
             }
         }
