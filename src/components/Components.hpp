@@ -22,8 +22,14 @@ struct PrevAcceleration {
 struct Mass {
     float value;
 };
-// Optional physical radius (meters). If absent, systems may derive
-// radius from mass and material density.
+// Optional per-body material density (kg/m^3). Used to derive radius when
+// an explicit Radius component is absent.
+struct Density {
+    double value = nbody::constants::body_density;
+};
+
+// Optional physical radius (meters). If absent, systems may derive radius
+// from mass and density.
 struct Radius {
     double value;
 };

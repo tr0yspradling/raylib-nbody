@@ -26,13 +26,19 @@ public:
         DVec2 momentum{0.0, 0.0};
         DVec2 com{0.0, 0.0};
         double totalMass = 0.0;
+        bool ok = true;
     };
 
     static void register_systems(const flecs::world& w) {
         // Collisions: resolve overlaps before computing forces.
         w.system<>().kind(flecs::OnUpdate).iter([&](flecs::iter&) {
-            if (const Config& cfg = *w.get<Config>(); cfg.paused) return;
+            auto* cfg = w.get<Config>();
+            if (!cfg || cfg->paused) return;
             nbody::systems::Collision::resolve(w);
+            Diagnostics d{};
+            d.ok = compute_diagnostics(w, cfg->g,
+                                       static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening), d);
+            w.set<Diagnostics>(d);
         });
 
         // Gravity: once per frame before integration.
@@ -101,8 +107,8 @@ public:
            static_cast<float>(constants::seed_central_mass), RED, false);
         const double radius = constants::seed_offset_x;
         const float v = static_cast<float>(std::sqrt(cfg.g * constants::seed_central_mass / radius));
-        mk({static_cast<float>(constants::seed_center_x + radius), static_cast<float>(constants::seed_center_y)}, {0.0f, v},
-           static_cast<float>(constants::seed_small_mass), BLUE, false);
+        mk({static_cast<float>(constants::seed_center_x + radius), static_cast<float>(constants::seed_center_y)},
+           {0.0f, v}, static_cast<float>(constants::seed_small_mass), BLUE, false);
         mk({static_cast<float>(constants::seed_center_x - radius), static_cast<float>(constants::seed_center_y)},
            {0.0f, -v}, static_cast<float>(constants::seed_small_mass), GREEN, false);
         zero_net_momentum(w);
@@ -115,7 +121,10 @@ public:
             [&](const Position& p, const Velocity& v, const Mass& m) { data.emplace_back(p.value, v.value, m.value); });
         const size_t n = data.size();
         out = Diagnostics{};
-        if (n == 0) return true;
+        if (n == 0) {
+            out.ok = true;
+            return true;
+        }
 
         auto* cfg = w.get_mut<Config>();
 
@@ -131,6 +140,7 @@ public:
             if (!(std::isfinite(KE) && std::isfinite(Px) && std::isfinite(Py) && std::isfinite(Cx) &&
                   std::isfinite(Cy) && std::isfinite(M))) {
                 if (cfg) cfg->paused = true;
+                out.ok = false;
                 return false;
             }
         }
@@ -144,6 +154,7 @@ public:
                 PE += -G * static_cast<double>(std::get<2>(data[i])) * static_cast<double>(std::get<2>(data[j])) / r;
                 if (!std::isfinite(PE)) {
                     if (cfg) cfg->paused = true;
+                    out.ok = false;
                     return false;
                 }
             }
@@ -156,14 +167,13 @@ public:
         out.totalMass = M;
         out.com = (M > 0.0) ? DVec2{Cx / M, Cy / M} : DVec2{0.0, 0.0};
 
-        const bool ok = std::isfinite(out.kinetic) && std::isfinite(out.potential) && std::isfinite(out.energy) &&
+        out.ok = std::isfinite(out.kinetic) && std::isfinite(out.potential) && std::isfinite(out.energy) &&
             std::isfinite(out.momentum.x) && std::isfinite(out.momentum.y) && std::isfinite(out.totalMass) &&
             std::isfinite(out.com.x) && std::isfinite(out.com.y);
-        if (!ok) {
+        if (!out.ok) {
             if (cfg) cfg->paused = true;
-            return false;
         }
-        return true;
+        return out.ok;
     }
     // No backward-compatible aliases: use snake_case API
 
@@ -185,8 +195,8 @@ private:
         accPtrs.reserve(1000);
 
         w.each([&](Position& p, Velocity& v, Mass& m, Pinned& pin, Acceleration& a) {
-            if (std::isfinite(p.value.x) && std::isfinite(p.value.y) && std::isfinite(v.value.x) && std::isfinite(v.value.y) &&
-                m.value > 0.0f && std::isfinite(static_cast<double>(m.value))) {
+            if (std::isfinite(p.value.x) && std::isfinite(p.value.y) && std::isfinite(v.value.x) &&
+                std::isfinite(v.value.y) && m.value > 0.0f && std::isfinite(static_cast<double>(m.value))) {
                 positions.push_back(p.value);
                 masses.push_back(m.value);
                 pins.push_back(pin.value ? 1 : 0);
@@ -202,7 +212,10 @@ private:
         if (n > static_cast<size_t>(cfg.bh_threshold)) {
             std::vector<SpatialPartition::Body> bodies;
             bodies.reserve(n);
-            for (size_t i = 0; i < n; ++i) bodies.push_back({raylib::Vector2{static_cast<float>(positions[i].x), static_cast<float>(positions[i].y)}, masses[i], static_cast<int>(i)});
+            for (size_t i = 0; i < n; ++i)
+                bodies.push_back(
+                    {raylib::Vector2{static_cast<float>(positions[i].x), static_cast<float>(positions[i].y)}, masses[i],
+                     static_cast<int>(i)});
 
             SpatialPartition tree;
             tree.build(bodies);
@@ -281,7 +294,8 @@ private:
         } else {
             // Velocity Verlet with substeps
             for (int step = 0; step < nSteps; ++step) {
-                w.each([&](Position& p, const Velocity& v, const Acceleration& a, PrevAcceleration& a0, const Pinned& pin) {
+                w.each([&](Position& p, const Velocity& v, const Acceleration& a, PrevAcceleration& a0,
+                           const Pinned& pin) {
                     if (pin.value) return;
                     const double half_dt2 = 0.5 * static_cast<double>(dtSub) * static_cast<double>(dtSub);
                     p.value.x += v.value.x * dtSub + a.value.x * half_dt2;
