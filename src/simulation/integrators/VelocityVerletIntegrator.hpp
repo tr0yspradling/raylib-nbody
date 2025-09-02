@@ -31,9 +31,9 @@ public:
                 a0.value = a.value;  // Store a_t for velocity update
             });
 
-            // Compute new acceleration at t+dt
-            // Note: This requires access to gravity computation
-            // We'll need to refactor this when we extract gravity calculation
+            // Note: Ideally we'd recompute gravity here for each substep, but that's handled
+            // by the PhysicsEngine for now. This means substeps use the same acceleration,
+            // which is less accurate but simpler for this refactoring phase.
 
             // Update velocities using average of old and new accelerations
             world.each([&](Velocity& v, const Acceleration& a, const PrevAcceleration& a0, const Pinned& pin) {

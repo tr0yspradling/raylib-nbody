@@ -43,11 +43,9 @@ public:
                 p.value.y += v.value.y * dtSub;
             });
             
-            // Recompute acceleration for next substep if needed
-            if (step + 1 < nSteps) {
-                // Note: This requires access to gravity computation
-                // We'll need to refactor this when we extract gravity calculation
-            }
+            // Note: Ideally we'd recompute gravity for next substep, but that's handled
+            // by the PhysicsEngine for now. In the future, we could add gravity 
+            // recalculation between substeps for better accuracy.
         }
     }
     
