@@ -27,8 +27,8 @@ public:
         : integrator_(std::move(integrator)) {}
 
     void registerSystems(const flecs::world& world) {
-        // Store physics engine instance in world for system access
-        world.set<PhysicsEngine*>(this);
+        // Note: We could store the physics engine instance in the world if needed,
+        // but for now we'll use a simpler approach where systems are self-contained
 
         // Collision system
         world.system<>().kind(flecs::OnUpdate).iter([&](flecs::iter&) {
@@ -46,17 +46,17 @@ public:
             computeGravity(world);
         });
 
-        // Integration system
-        world.system<>().kind(flecs::OnUpdate).iter([&](const flecs::iter& it) {
-            const Config& cfg = *world.get<Config>();
+        // Integration system - for now, we'll use the original physics integration
+        // until we fully extract the integrator dependency
+        world.system<>().kind(flecs::OnUpdate).iter([this](const flecs::iter& it) {
+            const Config& cfg = *it.world().get<Config>();
             if (cfg.paused) return;
             
             const float baseDt = cfg.use_fixed_dt ? cfg.fixed_dt : static_cast<float>(it.delta_time());
             const float dtEff = baseDt * std::max(0.0f, cfg.time_scale);
             
-            if (integrator_) {
-                integrator_->integrate(world, dtEff);
-            }
+            // Use original integration method for now
+            integrate(it.world(), dtEff);
         });
 
         // Trail update system
@@ -173,6 +173,36 @@ public:
         }
         
         return out.ok;
+    }
+
+    void integrate(const flecs::world& world, float deltaTime) {
+        // For now, use a simple integration approach similar to the original
+        // In the future, this could delegate to the strategy pattern integrators
+        const Config& cfg = *world.get<Config>();
+        const float maxSpeed = cfg.max_speed;
+        
+        // Simple Euler integration for now
+        world.each([&](Position& p, Velocity& v, const Acceleration& a, const Pinned& pin) {
+            if (pin.value) return;
+            
+            // Update velocity
+            v.value.x += a.value.x * deltaTime;
+            v.value.y += a.value.y * deltaTime;
+            
+            // Apply velocity cap if configured
+            if (maxSpeed > 0.0f) {
+                const double vlen = std::sqrt(v.value.x * v.value.x + v.value.y * v.value.y);
+                if (vlen > static_cast<double>(maxSpeed)) {
+                    const double s = static_cast<double>(maxSpeed) / vlen;
+                    v.value.x *= s;
+                    v.value.y *= s;
+                }
+            }
+            
+            // Update position
+            p.value.x += v.value.x * deltaTime;
+            p.value.y += v.value.y * deltaTime;
+        });
     }
 
 private:

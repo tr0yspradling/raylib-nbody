@@ -71,7 +71,7 @@ private:
         }
     }
 
-    void drawResetControls(const flecs::world& world, Config& cfg) {
+    void drawResetControls([[maybe_unused]] const flecs::world& world, [[maybe_unused]] Config& cfg) {
         if (ImGui::Button("Reset Scenario (S)")) {
             // This would need to be handled by a command or event
             requestScenarioReset_ = true;
@@ -118,9 +118,9 @@ private:
 
 private:
     bool visible_ = true;
-    bool requestSingleStep_ = false;
-    bool requestScenarioReset_ = false;
-    bool requestFullReset_ = false;
+    [[maybe_unused]] bool requestSingleStep_ = false;
+    [[maybe_unused]] bool requestScenarioReset_ = false;
+    [[maybe_unused]] bool requestFullReset_ = false;
 };
 
 }  // namespace nbody::ui::panels

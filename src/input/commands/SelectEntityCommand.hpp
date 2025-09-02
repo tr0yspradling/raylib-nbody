@@ -4,9 +4,11 @@
 #include "../../core/Math.hpp"
 #include "../../components/Components.hpp"
 #include "../../core/Constants.hpp"
+#include "../../core/Config.hpp"
 #include "../../systems/Camera.hpp"
 #include <cmath>
 #include <numbers>
+#include <limits>
 
 namespace nbody::input::commands {
 
@@ -18,8 +20,10 @@ public:
         flecs::entity entityToSelect = findEntityAtPosition(world, worldPosition_);
         
         // Clear previous selection
-        world.each([](const flecs::entity e, const Selected&) {
-            e.remove<Selected>();
+        world.each([&world](flecs::entity e, const Selected&) {
+            // Get mutable entity to remove component
+            flecs::entity mutableEntity = world.entity(e.id());
+            mutableEntity.remove<Selected>();
         });
         
         // Set new selection
@@ -40,7 +44,6 @@ private:
         const auto* cam = nbody::Camera::get(world);
         const float zoom = cam ? cam->zoom : 1.0f;
         const float pickRadius = nbody::constants::pick_radius_px / zoom;
-        const float pickRadius2 = pickRadius * pickRadius;
         
         world.each([&](const flecs::entity ent, const Position& pos, const Mass& mass, const Selectable& selectable) {
             if (!selectable.canSelect) return;

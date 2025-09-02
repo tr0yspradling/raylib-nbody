@@ -68,7 +68,7 @@ private:
         return context;
     }
 
-    void processKeyboardInput(const flecs::world& world, const InputContext& context) {
+    void processKeyboardInput([[maybe_unused]] const flecs::world& world, [[maybe_unused]] const InputContext& context) {
         // Scene reset shortcuts
         if (IsKeyPressed(KEY_S)) {
             auto cmd = std::make_unique<ResetScenarioCommand>();

@@ -122,6 +122,7 @@ elseif (TARGET flecs_static)
     set(FLECS_LIB flecs_static)
 endif()
 
+# Original executable
 add_executable(raylib_nbody
     src/main.cpp
     src/core/Config.hpp
@@ -152,15 +153,71 @@ target_link_libraries(raylib_nbody
         ${FLECS_LIB}
 )
 
-# Add strict compiler warnings only to our own code
-if(MSVC)
-    target_compile_options(raylib_nbody PRIVATE /W4)
-else()
-    target_compile_options(raylib_nbody PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
-endif()
+# Refactored executable
+add_executable(raylib_nbody_refactored
+    src/main_refactored.cpp
+    # Core architecture
+    src/core/Application.hpp
+    src/core/IEventBus.hpp
+    src/core/Events.hpp
+    # Simulation system
+    src/simulation/PhysicsEngine.hpp
+    src/simulation/IIntegrator.hpp
+    src/simulation/IGravityCalculator.hpp
+    src/simulation/IntegratorFactory.hpp
+    src/simulation/integrators/SemiImplicitEulerIntegrator.hpp
+    src/simulation/integrators/VelocityVerletIntegrator.hpp
+    # Input system
+    src/input/InputManager.hpp
+    src/input/ICommand.hpp
+    src/input/commands/AddBodyCommand.hpp
+    src/input/commands/SelectEntityCommand.hpp
+    # UI system
+    src/ui/UIManager.hpp
+    src/ui/IUIPanel.hpp
+    src/ui/panels/TimeControlPanel.hpp
+    # Shared components and systems (still needed)
+    src/components/Components.hpp
+    src/core/Config.hpp
+    src/core/Constants.hpp
+    src/core/Colors.hpp
+    src/core/Math.hpp
+    src/core/Scenario.hpp
+    src/systems/Camera.hpp
+    src/systems/Interaction.hpp
+    src/systems/WorldRenderer.hpp
+    src/systems/Collision.hpp
+    src/physics/SpatialPartition.hpp
+)
 
-if (APPLE)
-    target_link_libraries(raylib_nbody PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL")
-elseif (UNIX AND NOT APPLE)
-    target_link_libraries(raylib_nbody PRIVATE m pthread GL dl X11)
-endif()
+target_include_directories(raylib_nbody_refactored
+    PRIVATE
+        ${IMGUI_DIR}
+        ${RLIMGUI_DIR}
+        ${FLECS_DIR}
+        ${FLECS_DIR}/include
+        ${FLECS_DIR}/include/flecs/addons/cpp
+        src
+)
+
+target_link_libraries(raylib_nbody_refactored
+    PRIVATE
+        raylib_cpp
+        rlImGui
+        ${FLECS_LIB}
+)
+
+# Add strict compiler warnings to both executables
+foreach(target raylib_nbody raylib_nbody_refactored)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
+    endif()
+
+    if (APPLE)
+        target_link_libraries(${target} PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL")
+    elseif (UNIX AND NOT APPLE)
+        target_link_libraries(${target} PRIVATE m pthread GL dl X11)
+    endif()
+endforeach()
