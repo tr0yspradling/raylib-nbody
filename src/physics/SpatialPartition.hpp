@@ -1,9 +1,10 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
-#include <memory>
 #include <array>
+#include <cmath>
+#include <limits>
+#include <memory>
 #include <raylib-cpp.hpp>
 #include <vector>
 
@@ -88,7 +89,8 @@ public:
             const double dx = static_cast<double>(node->com.x) - static_cast<double>(target.pos.x);
             const double dy = static_cast<double>(node->com.y) - static_cast<double>(target.pos.y);
             const double dist = std::sqrt((dx * dx) + (dy * dy));
-            if ((static_cast<double>(node->halfSize) * 2.0) / dist < theta) {
+            const double safeDist = std::max(dist, std::numeric_limits<double>::epsilon());
+            if ((static_cast<double>(node->halfSize) * 2.0) / safeDist < theta) {
                 const double r2 = (dx * dx) + (dy * dy) + eps2;
                 const double invR = 1.0 / std::sqrt(r2);
                 const double invR3 = invR * invR * invR;
@@ -178,7 +180,10 @@ private:
     void aggregate_mass_com_iterative() {
         if (!root) return;
         // Post-order traversal using an explicit stack
-        struct Frame { Node* node; bool visited; };
+        struct Frame {
+            Node* node;
+            bool visited;
+        };
         std::vector<Frame> stack;
         stack.reserve(128);
         stack.push_back(Frame{root.get(), false});

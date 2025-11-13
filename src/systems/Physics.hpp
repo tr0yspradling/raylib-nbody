@@ -29,6 +29,11 @@ public:
         bool ok = true;
     };
 
+    struct DiagnosticsParams {
+        double gravitationalConstant = 0.0;
+        double softeningSquared = 0.0;
+    };
+
     static void register_systems(const flecs::world& w) {
         // Collisions: resolve overlaps before computing forces.
         w.system<>().kind(flecs::OnUpdate).iter([&](flecs::iter&) {
@@ -36,8 +41,11 @@ public:
             if (!cfg || cfg->paused) return;
             nbody::systems::Collision::resolve(w);
             Diagnostics d{};
-            d.ok = compute_diagnostics(w, cfg->g,
-                                       static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening), d);
+            const DiagnosticsParams params{
+                .gravitationalConstant = cfg->g,
+                .softeningSquared = static_cast<double>(cfg->softening) * static_cast<double>(cfg->softening),
+            };
+            d.ok = compute_diagnostics(w, params, d);
             w.set<Diagnostics>(d);
         });
 
@@ -114,7 +122,9 @@ public:
         zero_net_momentum(w);
     }
 
-    static bool compute_diagnostics(const flecs::world& w, const double G, const double eps2, Diagnostics& out) {
+    static bool compute_diagnostics(const flecs::world& w, const DiagnosticsParams& params, Diagnostics& out) {
+        const double G = params.gravitationalConstant;
+        const double eps2 = params.softeningSquared;
         std::vector<std::tuple<DVec2, DVec2, float>> data;
         data.reserve(1024);
         w.each(
@@ -178,8 +188,6 @@ public:
     // No backward-compatible aliases: use snake_case API
 
 private:
-    static inline bool is_finite(const float v) { return std::isfinite(static_cast<double>(v)); }
-
     static void compute_gravity(const flecs::world& w) {
         const Config& cfg = *w.get<Config>();
         const double G = cfg.g;
