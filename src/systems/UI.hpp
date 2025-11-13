@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstddef>
 #include <flecs.h>
 #include <imgui.h>
 #include <raylib-cpp.hpp>
@@ -246,10 +247,11 @@ private:
                 const bool isSel =
                     (Interaction::get_selected(w).is_alive() && Interaction::get_selected(w).id() == e.id());
                 ImGui::PushID(static_cast<int>(e.id()));
+                const float maxColorComponent = static_cast<float>(nbody::constants::random_color_max);
                 ImGui::ColorButton("##c",
-                                   ImVec4(t->value.r / static_cast<float>(nbody::constants::random_color_max),
-                                          t->value.g / static_cast<float>(nbody::constants::random_color_max),
-                                          t->value.b / static_cast<float>(nbody::constants::random_color_max), 1.0f),
+                                   ImVec4(static_cast<float>(t->value.r) / maxColorComponent,
+                                          static_cast<float>(t->value.g) / maxColorComponent,
+                                          static_cast<float>(t->value.b) / maxColorComponent, 1.0f),
                                    0, ImVec2(16, 16));
                 ImGui::SameLine();
                 if (ImGui::Selectable(("Entity " + std::to_string(e.id())).c_str(), isSel)) pendingSelection = e;
@@ -298,8 +300,11 @@ private:
         if (const auto* dp = w.get<Physics::Diagnostics>()) {
             d = *dp;
         } else {
-            d.ok = Physics::compute_diagnostics(
-                w, cfg.g, static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening), d);
+            const Physics::DiagnosticsParams params{
+                .gravitationalConstant = cfg.g,
+                .softeningSquared = static_cast<double>(cfg.softening) * static_cast<double>(cfg.softening),
+            };
+            d.ok = Physics::compute_diagnostics(w, params, d);
         }
         ImGui::SetNextWindowPos(ImVec2(400, 390), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_FirstUseEver);
@@ -355,9 +360,11 @@ private:
             store->selected = static_cast<int>(store->items.size()) - 1;
         }
         ImGui::SameLine();
-        const bool canSel = (store->selected >= 0 && store->selected < (int)store->items.size());
-        if (ImGui::Button("Overwrite Selected") && canSel) {
-            const std::string name = (nameBuf[0] != '\0') ? std::string(nameBuf) : store->items[store->selected].name;
+        const bool hasSelection =
+            store->selected >= 0 && static_cast<std::size_t>(store->selected) < store->items.size();
+        if (ImGui::Button("Overwrite Selected") && hasSelection) {
+            const std::size_t selectedIndex = static_cast<std::size_t>(store->selected);
+            const std::string name = (nameBuf[0] != '\0') ? std::string(nameBuf) : store->items[selectedIndex].name;
             const std::string desc = std::string(descBuf);
             Scenario s = snapshot_from_world(w, name, desc);
             // use current tagsBuf
@@ -373,7 +380,7 @@ private:
                 if (comma == std::string::npos) break;
                 start = comma + 1;
             }
-            store->items[store->selected] = std::move(s);
+            store->items[selectedIndex] = std::move(s);
         }
 
         ImGui::Separator();
@@ -384,7 +391,7 @@ private:
         ImGui::BeginChild("##ScenarioList", ImVec2(0, 140), true);
         for (int i = 0; i < static_cast<int>(store->items.size()); ++i) {
             const bool selected = (store->selected == i);
-            const auto& s = store->items[i];
+            const auto& s = store->items[static_cast<std::size_t>(i)];
             // If filter present, skip items that do not match name or any tag
             if (!filterStr.empty()) {
                 bool match = s.name.find(filterStr) != std::string::npos;
@@ -434,20 +441,21 @@ private:
         }
         ImGui::EndChild();
 
-        const bool canAct = canSel;
         ImGui::Checkbox("Apply Config on Load", &applyConfigOnLoad);
-        if (ImGui::Button("Load Selected") && canAct) {
+        if (ImGui::Button("Load Selected") && hasSelection) {
+            const std::size_t selectedIndex = static_cast<std::size_t>(store->selected);
             if (applyConfigOnLoad) {
-                apply_scenario_to_world(w, store->items[store->selected]);
+                apply_scenario_to_world(w, store->items[selectedIndex]);
             } else {
-                apply_scenario_bodies_only(w, store->items[store->selected]);
+                apply_scenario_bodies_only(w, store->items[selectedIndex]);
             }
             // Reset camera for a clean view
             Camera::reset_view(w);
         }
         ImGui::SameLine();
-        if (ImGui::Button("Delete Selected") && canAct) {
-            store->items.erase(store->items.begin() + store->selected);
+        if (ImGui::Button("Delete Selected") && hasSelection) {
+            const std::size_t selectedIndex = static_cast<std::size_t>(store->selected);
+            store->items.erase(store->items.begin() + static_cast<std::ptrdiff_t>(selectedIndex));
             store->selected = -1;
         }
 
